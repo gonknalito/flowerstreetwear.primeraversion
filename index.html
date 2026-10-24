@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Flowers Streetwear · Tienda online</title>
+  <meta name="description" content="Flowers Streetwear: ropa, calzado, accesorios y tecnología con actitud urbana. Catálogo de demostración.">
+  <meta name="theme-color" content="#5C509C">
+  <link rel="icon" href="assets/logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Saltar al contenido</a>
+
+  <div class="announce" id="announce" role="region" aria-label="Aviso"></div>
+
+  <header class="site-header" id="header">
+    <div class="header-inner">
+      <button class="icon-btn menu-toggle" id="menuToggle" aria-label="Abrir menú" aria-expanded="false" aria-controls="mobileNav">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+      </button>
+      <a href="#/" class="logo-link" aria-label="Flowers Streetwear, ir al inicio"><img src="assets/logo.png" alt="Flowers Streetwear" width="792" height="586"></a>
+      <nav class="main-nav" id="mainNav" aria-label="Principal"></nav>
+      <div class="header-actions">
+        <button class="icon-btn" id="searchToggle" aria-label="Buscar productos" aria-expanded="false" aria-controls="searchBar">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+        </button>
+        <a class="icon-btn cart-link" href="#/carrito" aria-label="Carrito, 0 artículos" id="cartLink">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l-1.2 11.2a1 1 0 0 1-1 .8H7.2a1 1 0 0 1-1-.8L5 8z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>
+          <span class="cart-count" id="cartCount">0</span>
+        </a>
+      </div>
+    </div>
+    <form class="search-bar" id="searchBar" role="search" hidden>
+      <label for="searchInput" class="sr-only">Buscar productos</label>
+      <input id="searchInput" type="search" placeholder="Busca polos, zapatillas, gorros…" autocomplete="off">
+      <button type="submit" class="btn btn-primary">Buscar</button>
+    </form>
+  </header>
+
+  <div class="scrim" id="scrim" hidden></div>
+  <nav class="mobile-nav" id="mobileNav" aria-label="Menú móvil" hidden></nav>
+
+  <main id="main" tabindex="-1"></main>
+
+  <footer class="site-footer" id="footer"></footer>
+
+  <aside class="mini-cart" id="miniCart" role="dialog" aria-modal="false" aria-labelledby="miniCartTitle" hidden></aside>
+  <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Foto ampliada" hidden></div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="js/data.js"></script>
+  <script src="js/art.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

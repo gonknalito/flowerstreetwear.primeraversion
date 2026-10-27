@@ -19,42 +19,66 @@
   const money = (n) => `${CFG.currency} ${Number(n).toFixed(2)}`;
   const norm = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
   const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
-  const SIZE_ORDER = ["XS", "S", "M", "L", "XL", "S/M", "L/XL"];
-  const sortSizes = (a, b) => {
-    const ia = SIZE_ORDER.indexOf(a), ib = SIZE_ORDER.indexOf(b);
-    if (ia > -1 || ib > -1) return (ia > -1 ? ia : 99) - (ib > -1 ? ib : 99);
-    return parseFloat(a) - parseFloat(b);
+  const SIZE_ORDER = ["XS", "S", "M", "L", "XL"];
+  /* Clave de orden para tallas: letras (XS…XL) o numéricas (cintura, calzado EU/US/IT). */
+  const sizeKey = (s) => {
+    const t = String(s).trim();
+    const lt = t.match(/^(XS|S|M|L|XL)\b/);
+    if (lt) return 1000 + SIZE_ORDER.indexOf(lt[1]);
+    if (/\bLV\b/.test(t)) return 900;
+    if (/^\d+(\.\d+)?\s*IT\b/.test(t)) return parseFloat(t);
+    const eu = t.match(/\((\d+(?:\.\d+)?)\)/);
+    return eu ? parseFloat(eu[1]) : parseFloat(t);
   };
+  const sortSizes = (a, b) => sizeKey(a) - sizeKey(b);
   const uniq = (arr) => Array.from(new Set(arr));
 
   /* ---------- Datos enriquecidos ---------- */
   const SUBS = {};
   CATS.forEach((c) => c.subs.forEach((s) => { SUBS[s.id] = { ...s, cat: c }; }));
-  const PRODUCTS = window.FLOWERS_PRODUCTS.map((p) => ({
-    sizes: [], capacities: [], soldOut: [], details: [], care: [], ...p,
-    cat: SUBS[p.sub].cat.id, catName: SUBS[p.sub].cat.name, subName: SUBS[p.sub].name
-  }));
+  /* Marcas: una sola escritura por marca (sin duplicados como «NIKE» / «Nike»). */
+  const BRAND_NAMES = {};
+  const normBrands = (list) => uniq((list || []).map((b) => { const t = String(b).trim(), k = norm(t); return BRAND_NAMES[k] || (BRAND_NAMES[k] = t); }));
+  const PRODUCTS = window.FLOWERS_PRODUCTS.map((p, order) => {
+    const variants = (p.variants && p.variants.length ? p.variants : [{ color: "", sizes: p.sizes || [] }])
+      .map((v) => ({ color: "", sizes: [], images: [], ...v, price: v.price != null ? v.price : p.price }));
+    const prices = variants.map((v) => v.price);
+    return { ...p, order, variants, brands: normBrands(p.brands), available: p.available !== false, images: p.images || [],
+      colors: uniq(variants.map((v) => v.color).filter(Boolean)),
+      sizes: uniq(variants.flatMap((v) => v.sizes)).sort(sortSizes),
+      price: Math.min(...prices), maxPrice: Math.max(...prices),
+      cat: SUBS[p.sub].cat.id, catName: SUBS[p.sub].cat.name, subName: SUBS[p.sub].name };
+  });
   const byId = (id) => PRODUCTS.find((p) => p.id === id);
+  const hasProducts = (subId) => PRODUCTS.some((p) => p.sub === subId);
+  /* Solo se muestran las categorías y subcategorías que tienen productos. */
+  const VCATS = CATS.map((c) => ({ ...c, subs: c.subs.filter((s) => hasProducts(s.id)) })).filter((c) => c.subs.length);
   const catById = (id) => CATS.find((c) => c.id === id);
+  const visCat = (id) => VCATS.find((c) => c.id === id);
   const hex = (name) => COLORS[name] || "#cccccc";
-  const imgCache = {};
-  function productImage(p, view = 0, color) {
-    if (p.images && p.images[view]) return p.images[view];
-    const c = color || p.colors[0];
-    const k = `${p.sub}|${c}|${view}`;
-    return imgCache[k] || (imgCache[k] = Art.product(p.sub, hex(c), view));
+  const variantOf = (p, color) => p.variants.find((v) => v.color === (color || "")) || p.variants[0];
+  const unitPrice = (i) => { const p = byId(i.id); return variantOf(p, i.color).price; };
+  const priceLabel = (p) => (p.maxPrice > p.price ? `Desde ${money(p.price)}` : money(p.price));
+  const imagesFor = (p, color) => { const v = color ? variantOf(p, color) : null; return v && v.images.length ? v.images : p.images; };
+  const productImage = (p, color) => imagesFor(p, color)[0] || Art.placeholder();
+  /* Sin datos de «nuevo», se muestra el inventario completo intercalando categorías. */
+  function isNewList() {
+    const n = PRODUCTS.filter((p) => p.isNew).sort((a, b) => a.order - b.order);
+    if (n.length) return n;
+    const groups = {}; PRODUCTS.forEach((p) => (groups[p.sub] = groups[p.sub] || []).push(p));
+    const lists = Object.values(groups), out = [];
+    for (let k = 0; out.length < PRODUCTS.length; k++) lists.forEach((l) => { if (l[k]) out.push(l[k]); });
+    return out;
   }
-  const productImages = (p, color) => (p.images && p.images.length ? p.images : [0, 1, 2].map((v) => productImage(p, v, color)));
-  const isNewList = () => PRODUCTS.filter((p) => p.isNew).sort((a, b) => b.addedAt.localeCompare(a.addedAt));
 
   /* ---------- Carrito (persistente) ---------- */
-  const CART_KEY = "flowers.cart.v1";
+  const CART_KEY = "flowers.cart.v2";
   let cart = [];
   try { cart = JSON.parse(localStorage.getItem(CART_KEY)) || []; } catch (e) { cart = []; }
   cart = cart.filter((i) => byId(i.id));
   const saveCart = () => { try { localStorage.setItem(CART_KEY, JSON.stringify(cart)); } catch (e) { /* sin almacenamiento */ } updateCartBadge(); };
   const cartCount = () => cart.reduce((n, i) => n + i.qty, 0);
-  const cartSubtotal = () => cart.reduce((n, i) => n + byId(i.id).price * i.qty, 0);
+  const cartSubtotal = () => cart.reduce((n, i) => n + unitPrice(i) * i.qty, 0);
   const lineKey = (i) => [i.id, i.size || "", i.color || "", i.capacity || ""].join("|");
   function updateCartBadge(bump) {
     const n = cartCount();
@@ -83,16 +107,17 @@
   /* ---------- Plantillas compartidas ---------- */
   function card(p) {
     const swatches = p.colors.map((c) => `<span class="sw" style="background:${hex(c)}" title="${esc(c)}"></span>`).join("");
+    const photo = imagesFor(p).length > 0;
     return `<a class="p-card" href="#/producto/${p.id}">
-      <div class="p-media">
-        <img src="${productImage(p)}" alt="${esc(p.name)}" width="400" height="500" loading="lazy" decoding="async">
+      <div class="p-media ${photo ? "" : "no-photo"}">
+        <img src="${productImage(p)}" alt="${esc(photo ? (p.imageAlt || p.name) : `${p.name} (imagen próximamente)`)}" width="400" height="500" loading="lazy" decoding="async">
         ${p.isNew ? '<span class="badge">Nuevo</span>' : ""}${!p.available ? '<span class="badge out">Agotado</span>' : ""}
       </div>
       <div class="p-info">
         <div class="p-name">${esc(p.name)}</div>
         <div class="p-meta">${esc(p.subName)}</div>
-        <div class="p-price">${money(p.price)}</div>
-        <div class="swatches" role="img" aria-label="Colores: ${esc(p.colors.join(", "))}">${swatches}<span class="p-meta">${p.colors.length > 1 ? plural(p.colors.length, "color", "colores") : p.colors[0]}</span></div>
+        <div class="p-price">${priceLabel(p)}</div>
+        ${p.colors.length ? `<div class="swatches" role="img" aria-label="Colores: ${esc(p.colors.join(", "))}">${swatches}<span class="p-meta">${p.colors.length > 1 ? plural(p.colors.length, "color", "colores") : esc(p.colors[0])}</span></div>` : ""}
       </div>
     </a>`;
   }
@@ -112,7 +137,7 @@
   function buildHeader() {
     $("#announce").innerHTML = `<b>●</b> ${esc(CFG.announcement)}`;
     const mega = (c) => {
-      const groups = MENU_GROUPS[c.id];
+      const groups = MENU_GROUPS[c.id].map((g) => ({ ...g, subs: g.subs.filter(hasProducts) })).filter((g) => g.subs.length);
       return `<div class="mega"><div class="mega-inner" style="--cols:${groups.length}">
         ${groups.map((g) => `<div class="mega-col"><h3>${esc(g.title)}</h3><ul>
           ${g.subs.map((s) => `<li><a href="#/${c.id}/${s}">${esc(SUBS[s].name)}</a></li>`).join("")}
@@ -121,13 +146,13 @@
       </div></div>`;
     };
     $("#mainNav").innerHTML = `<div class="nav-item"><a class="nav-link accent" href="#/novedades" data-nav="novedades">Novedades</a></div>` +
-      CATS.map((c) => `<div class="nav-item"><a class="nav-link" href="#/${c.id}" data-nav="${c.id}" aria-haspopup="true">${esc(c.name)}</a>${mega(c)}</div>`).join("");
+      VCATS.map((c) => `<div class="nav-item"><a class="nav-link" href="#/${c.id}" data-nav="${c.id}" aria-haspopup="true">${esc(c.name)}</a>${mega(c)}</div>`).join("");
 
     $("#mobileNav").innerHTML = `<div class="mn-head"><a href="#/" aria-label="Inicio"><img src="assets/logo.png" alt="Flowers Streetwear"></a>
         <button class="icon-btn" id="menuClose" aria-label="Cerrar menú"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19"/></svg></button></div>
       <ul class="mn-list">
         <li><a class="mn-row" href="#/novedades">Novedades</a></li>
-        ${CATS.map((c) => `<li><button class="mn-acc" aria-expanded="false" aria-controls="mn-${c.id}">${esc(c.name)}</button>
+        ${VCATS.map((c) => `<li><button class="mn-acc" aria-expanded="false" aria-controls="mn-${c.id}">${esc(c.name)}</button>
           <div class="mn-sub" id="mn-${c.id}" hidden><a class="all" href="#/${c.id}">Ver todo ${esc(c.name)}</a>
           ${c.subs.map((s) => `<a href="#/${c.id}/${s.id}">${esc(s.name)}</a>`).join("")}</div></li>`).join("")}
       </ul>
@@ -143,12 +168,12 @@
           <div class="form-msg" id="newsMsg" role="status" aria-live="polite"></div>
           <p class="form-note"><span class="demo-flag">Pendiente</span> Conexión con servicio de correo por configurar.</p></div>
         <div class="footer-cols">
-          <div><h3>Tienda</h3><ul><li><a href="#/novedades">Novedades</a></li>${CATS.map((c) => `<li><a href="#/${c.id}">${esc(c.name)}</a></li>`).join("")}</ul></div>
+          <div><h3>Tienda</h3><ul><li><a href="#/novedades">Novedades</a></li>${VCATS.map((c) => `<li><a href="#/${c.id}">${esc(c.name)}</a></li>`).join("")}</ul></div>
           <div><h3>Ayuda</h3><ul><li><a href="#/info/contacto">Contacto</a></li><li><a href="#/info/faq">Preguntas frecuentes</a></li><li><a href="#/info/envios">Envíos y cambios</a></li><li><a href="#/info/tallas">Guía de tallas</a></li><li><a href="#/info/privacidad">Privacidad y términos</a></li></ul></div>
           <div><h3>Comunidad</h3><ul><li><a href="${CFG.instagramUrl}" target="_blank" rel="noopener">Instagram ${esc(CFG.instagramHandle)}</a></li></ul></div>
         </div>
       </div>
-      <div class="footer-bottom"><span>© ${new Date().getFullYear()} Flowers Streetwear · <span class="demo-flag">Catálogo de demostración</span></span>
+      <div class="footer-bottom"><span>© ${new Date().getFullYear()} Flowers Streetwear</span>
         <span>Síguenos en <a href="${CFG.instagramUrl}" target="_blank" rel="noopener">${esc(CFG.instagramHandle)}</a></span></div></div>`;
     $("#newsForm").addEventListener("submit", (e) => {
       e.preventDefault();
@@ -196,15 +221,15 @@
     const [a, b] = parts;
     $$(".nav-link").forEach((l) => l.classList.toggle("active", l.dataset.nav === (a === "producto" && byId(b) ? byId(b).cat : a)));
     if (!a) renderHome();
-    else if (a === "novedades") renderCatalog({ key: "novedades", title: "Novedades", lead: "Lo último que llegó a Flowers.", list: isNewList(), crumbs: [["Inicio", "#/"], ["Novedades"]], filters: ["cat", "size", "color", "price", "availability"], q });
-    else if (a === "catalogo") renderCatalog({ key: "catalogo", title: "Todo el catálogo", lead: "Explora todas las categorías.", list: PRODUCTS, crumbs: [["Inicio", "#/"], ["Catálogo"]], filters: ["cat", "size", "color", "price", "availability"], q });
+    else if (a === "novedades") renderCatalog({ key: "novedades", title: "Novedades", lead: "Lo último que llegó a Flowers.", list: isNewList(), crumbs: [["Inicio", "#/"], ["Novedades"]], filters: ["cat", "brand", "size", "color", "price", "availability"], q });
+    else if (a === "catalogo") renderCatalog({ key: "catalogo", title: "Todo el catálogo", lead: "Explora todas las categorías.", list: PRODUCTS, crumbs: [["Inicio", "#/"], ["Catálogo"]], filters: ["cat", "brand", "size", "color", "price", "availability"], q });
     else if (a === "buscar") renderSearch(q);
     else if (a === "carrito") renderCart();
     else if (a === "checkout") renderCheckout();
     else if (a === "info" && PAGES[b]) renderInfo(b);
     else if (a === "producto" && byId(b)) renderProduct(byId(b));
-    else if (catById(a) && !b) renderCategory(catById(a), q);
-    else if (catById(a) && SUBS[b] && SUBS[b].cat.id === a) renderSub(SUBS[b], q);
+    else if (visCat(a) && !b) renderCategory(visCat(a), q);
+    else if (visCat(a) && SUBS[b] && SUBS[b].cat.id === a && hasProducts(b)) renderSub(SUBS[b], q);
     else renderNotFound();
     window.scrollTo({ top: 0, behavior: "instant" });
     main.focus({ preventScroll: true });
@@ -222,7 +247,8 @@
   /* ---------- Inicio ---------- */
   function renderHome() {
     const drop = isNewList().slice(0, 8);
-    const sel = PRODUCTS.filter((p) => p.selection).slice(0, 8);
+    const flagged = PRODUCTS.filter((p) => p.selection);
+    const sel = (flagged.length ? flagged : isNewList()).slice(0, 8);
     const street = CFG.streetImages;
     view(`
     <section class="hero" aria-labelledby="heroTitle">
@@ -239,7 +265,7 @@
 
     <section class="section"><div class="wrap">
       <div class="section-head reveal"><div><span class="eyebrow">Explora</span><h2>Compra por categoría</h2></div></div>
-      <div class="cat-grid">${CATS.map((c) => `<a class="cat-card reveal" href="#/${c.id}"><img src="${catImage(c.id)}" alt="" loading="lazy">
+      <div class="cat-grid" style="--n:${VCATS.length}">${VCATS.map((c) => `<a class="cat-card reveal" href="#/${c.id}"><img src="${catImage(c.id)}" alt="" loading="lazy">
         <div class="cat-card-body"><h3>${esc(c.name)}</h3><p>${esc(c.tagline)}</p><span class="pill">Explorar</span></div></a>`).join("")}</div>
     </div></section>
 
@@ -273,19 +299,19 @@
   /* ---------- Catálogo ---------- */
   function renderCategory(c, q) {
     renderCatalog({ key: c.id, title: c.name, lead: c.tagline, list: PRODUCTS.filter((p) => p.cat === c.id), crumbs: [["Inicio", "#/"], [c.name]],
-      filters: c.id === "accesorios" ? ["type", "color", "price", "availability", "size"] : c.filters, typeSubs: c.subs, chips: { cat: c, active: null }, q });
+      filters: c.id === "accesorios" ? ["type", "brand", "color", "price", "availability", "size"] : c.filters, typeSubs: c.subs, chips: { cat: c, active: null }, q });
   }
   function renderSub(s, q) {
     renderCatalog({ key: s.id, title: s.name, lead: s.cat.tagline, list: PRODUCTS.filter((p) => p.sub === s.id),
-      crumbs: [["Inicio", "#/"], [s.cat.name, `#/${s.cat.id}`], [s.name]], filters: s.cat.filters.filter((f) => f !== "type"), chips: { cat: s.cat, active: s.id }, q });
+      crumbs: [["Inicio", "#/"], [s.cat.name, `#/${s.cat.id}`], [s.name]], filters: s.cat.filters.filter((f) => f !== "type"), chips: { cat: visCat(s.cat.id), active: s.id }, q });
   }
   function renderSearch(q) {
     const term = (q.q || "").trim();
     $("#searchInput").value = term;
     const words = norm(term).split(/\s+/).filter(Boolean);
-    const list = words.length ? PRODUCTS.filter((p) => { const hay = norm([p.name, p.catName, p.subName, p.colors.join(" "), p.description].join(" ")); return words.every((w) => hay.includes(w)); }) : [];
+    const list = words.length ? PRODUCTS.filter((p) => { const hay = norm([p.name, p.catName, p.subName, p.colors.join(" "), p.brands.join(" "), p.description].join(" ")); return words.every((w) => hay.includes(w)); }) : [];
     renderCatalog({ key: "buscar", title: term ? `Resultados para «${term}»` : "Buscar", lead: term ? "" : "Escribe en la barra de búsqueda para encontrar productos por nombre o categoría.", list,
-      crumbs: [["Inicio", "#/"], ["Búsqueda"]], filters: ["cat", "size", "color", "price", "availability"], q, search: term });
+      crumbs: [["Inicio", "#/"], ["Búsqueda"]], filters: ["cat", "brand", "size", "color", "price", "availability"], q, search: term });
   }
 
   let CS = null; // estado del catálogo vigente
@@ -293,21 +319,24 @@
     const L = o.list;
     CS = { o, st: { sort: o.q.sort || "nuevos", min: o.q.min || "", max: o.q.max || "", av: o.q.av === "1",
       size: (o.q.size || "").split(",").filter(Boolean), color: (o.q.color || "").split(",").filter(Boolean),
-      type: (o.q.type || "").split(",").filter(Boolean), cap: (o.q.cap || "").split(",").filter(Boolean) } };
+      brand: (o.q.brand || "").split(",").filter(Boolean), type: (o.q.type || "").split(",").filter(Boolean), cap: (o.q.cap || "").split(",").filter(Boolean) } };
     const has = (k) => o.filters.includes(k);
     const sizes = uniq(L.flatMap((p) => p.sizes)).sort(sortSizes);
     const colors = uniq(L.flatMap((p) => p.colors));
     const caps = uniq(L.flatMap((p) => p.capacities)).sort((a, b) => parseFloat(a) - parseFloat(b));
-    const prices = L.map((p) => p.price);
+    const prices = L.flatMap((p) => [p.price, p.maxPrice]);
+    const colorShare = L.length ? L.filter((p) => p.colors.length).length / L.length : 0;
     const lo = prices.length ? Math.floor(Math.min(...prices)) : 0, hi = prices.length ? Math.ceil(Math.max(...prices)) : 0;
     const typeOpts = o.typeSubs ? o.typeSubs.map((s) => [s.id, s.name]) : uniq(L.map((p) => p.cat)).map((id) => [id, catById(id).name]);
     const chips = (name, vals, labelFn) => `<div class="f-opts">${vals.map((v) => `<label class="f-opt"><input type="checkbox" name="${name}" value="${esc(v)}"><span>${labelFn ? labelFn(v) : esc(v)}</span></label>`).join("")}</div>`;
 
     let fp = "";
     if ((has("type") || has("cat")) && typeOpts.length > 1) fp += `<fieldset class="f-group"><legend>${o.typeSubs ? "Tipo" : "Categoría"}</legend><div class="f-list">${typeOpts.map(([id, n]) => `<label class="f-check"><input type="checkbox" name="type" value="${id}"> ${esc(n)}</label>`).join("")}</div></fieldset>`;
+    const brands = uniq(L.flatMap((p) => p.brands)).sort((a, b) => a.localeCompare(b, "es"));
+    if (has("brand") && brands.length) fp += `<fieldset class="f-group"><legend>Marca</legend><div class="f-list ${brands.length > 8 ? "scroll" : ""}">${brands.map((b) => `<label class="f-check"><input type="checkbox" name="brand" value="${esc(b)}"> ${esc(b)}</label>`).join("")}</div></fieldset>`;
     if (has("size") && sizes.length) fp += `<fieldset class="f-group"><legend>${o.key === "calzado" || o.key === "zapatillas" || o.key === "crocs" ? "Talla de calzado" : "Talla"}</legend>${chips("size", sizes)}</fieldset>`;
     if (has("capacity") && caps.length) fp += `<fieldset class="f-group"><legend>Capacidad</legend>${chips("cap", caps)}</fieldset>`;
-    if (has("color") && colors.length) fp += `<fieldset class="f-group"><legend>Color</legend>${chips("color", colors, (v) => `<i class="sw" style="background:${hex(v)}"></i>${esc(v)}`)}</fieldset>`;
+    if (has("color") && colors.length && colorShare >= 0.5) fp += `<fieldset class="f-group"><legend>Color</legend>${chips("color", colors, (v) => `<i class="sw" style="background:${hex(v)}"></i>${esc(v)}`)}</fieldset>`;
     if (has("price") && L.length) fp += `<fieldset class="f-group"><legend>Precio (${CFG.currency})</legend><div class="price-row"><label>Mínimo<input type="number" name="min" min="0" inputmode="decimal" placeholder="${lo}"></label><label>Máximo<input type="number" name="max" min="0" inputmode="decimal" placeholder="${hi}"></label></div></fieldset>`;
     if (has("availability")) fp += `<fieldset class="f-group"><legend>Disponibilidad</legend><label class="f-check"><input type="checkbox" name="av" value="1"> Solo productos disponibles</label></fieldset>`;
 
@@ -341,13 +370,13 @@
   function readForm() {
     const f = $("#filterForm"), st = CS.st;
     const vals = (n) => $$(`input[name="${n}"]:checked`, f).map((i) => i.value);
-    st.size = vals("size"); st.color = vals("color"); st.type = vals("type"); st.cap = vals("cap");
+    st.size = vals("size"); st.brand = vals("brand"); st.color = vals("color"); st.type = vals("type"); st.cap = vals("cap");
     const av = $('input[name="av"]', f); st.av = av ? av.checked : false;
     const mn = $('input[name="min"]', f), mx = $('input[name="max"]', f);
     st.min = mn ? mn.value : ""; st.max = mx ? mx.value : "";
   }
   function clearFilters() {
-    Object.assign(CS.st, { size: [], color: [], type: [], cap: [], min: "", max: "", av: false });
+    Object.assign(CS.st, { size: [], brand: [], color: [], type: [], cap: [], min: "", max: "", av: false });
     const f = $("#filterForm");
     if (f) $$("input", f).forEach((i) => { if (i.type === "checkbox") i.checked = false; else i.value = ""; });
     applyCatalog();
@@ -356,10 +385,11 @@
     const min = st.min !== "" ? parseFloat(st.min) : null, max = st.max !== "" ? parseFloat(st.max) : null;
     return L.filter((p) => {
       if (st.type.length && !st.type.includes(CS.o.typeSubs ? p.sub : p.cat)) return false;
+      if (st.brand.length && !p.brands.some((b) => st.brand.some((s) => norm(s) === norm(b)))) return false;
       if (st.size.length && !p.sizes.some((s) => st.size.includes(s))) return false;
       if (st.color.length && !p.colors.some((c) => st.color.includes(c))) return false;
       if (st.cap.length && !p.capacities.some((c) => st.cap.includes(c))) return false;
-      if (min !== null && p.price < min) return false;
+      if (min !== null && p.maxPrice < min) return false;
       if (max !== null && p.price > max) return false;
       if (st.av && !p.available) return false;
       return true;
@@ -369,7 +399,7 @@
     const a = L.slice();
     if (how === "precio-asc") a.sort((x, y) => x.price - y.price);
     else if (how === "precio-desc") a.sort((x, y) => y.price - x.price);
-    else a.sort((x, y) => (Number(!!y.isNew) - Number(!!x.isNew)) || y.addedAt.localeCompare(x.addedAt));
+    else a.sort((x, y) => (Number(!!y.isNew) - Number(!!x.isNew)) || x.order - y.order);
     return a;
   }
   function applyCatalog(first) {
@@ -377,6 +407,7 @@
     const res = sortList(filterList(o.list, st), st.sort);
     const tags = [];
     st.type.forEach((v) => tags.push(["type", v, (SUBS[v] ? SUBS[v].name : (catById(v) || {}).name) || v]));
+    st.brand.forEach((v) => tags.push(["brand", v, v]));
     st.size.forEach((v) => tags.push(["size", v, `Talla ${v}`]));
     st.cap.forEach((v) => tags.push(["cap", v, v]));
     st.color.forEach((v) => tags.push(["color", v, v]));
@@ -412,7 +443,7 @@
     /* Mantener la URL con los filtros activos */
     const qs = new URLSearchParams();
     if (st.sort !== "nuevos") qs.set("sort", st.sort);
-    ["size", "color", "type", "cap"].forEach((k) => st[k].length && qs.set(k, st[k].join(",")));
+    ["brand", "size", "color", "type", "cap"].forEach((k) => st[k].length && qs.set(k, st[k].join(",")));
     if (st.min !== "") qs.set("min", st.min); if (st.max !== "") qs.set("max", st.max); if (st.av) qs.set("av", "1");
     if (o.search) qs.set("q", o.search);
     const base = location.hash.split("?")[0] || "#/";
@@ -426,76 +457,91 @@
   function closeFilters() { const f = $("#filters"); if (f) f.classList.remove("open"); if (scrimOwner === "filters") closeScrim(); }
 
   /* ---------- Ficha de producto ---------- */
-  const GUIDE_ROWS = { ropa: ["XS", "S", "M", "L", "XL"], calzado: ["37", "38", "39", "40", "41", "42", "43"] };
-  function sizeGuideHtml(p) {
-    const type = SUBS[p.sub].cat.sizeType;
-    if (type === "ropa") return `<p class="pending">Medidas pendientes de completar por Flowers.</p><table class="size-table"><thead><tr><th>Talla</th><th>Pecho (cm)</th><th>Largo (cm)</th></tr></thead><tbody>${GUIDE_ROWS.ropa.map((s) => `<tr><td>${s}</td><td>—</td><td>—</td></tr>`).join("")}</tbody></table>`;
-    if (type === "calzado") return `<p class="pending">Equivalencias pendientes de completar por Flowers.</p><table class="size-table"><thead><tr><th>Talla</th><th>Largo del pie (cm)</th></tr></thead><tbody>${GUIDE_ROWS.calzado.map((s) => `<tr><td>${s}</td><td>—</td></tr>`).join("")}</tbody></table>`;
-    return "";
-  }
+  const sizeGuideHtml = () => `<p class="pending">La guía de tallas está pendiente de completar por Flowers. Las tallas mostradas son las indicadas en el inventario.</p>`;
   function renderProduct(p) {
     const sub = SUBS[p.sub], cat = sub.cat;
     const groups = [];
     if (p.colors.length) groups.push({ key: "color", label: "Color", opts: p.colors, sw: true });
-    if (p.sizes.length) groups.push({ key: "size", label: cat.sizeType === "calzado" ? "Talla de calzado" : "Talla", opts: p.sizes, guide: !!GUIDE_ROWS[cat.sizeType] });
-    if (p.capacities.length) groups.push({ key: "capacity", label: "Capacidad", opts: p.capacities });
-    const guide = sizeGuideHtml(p);
+    if (p.sizes.length) groups.push({ key: "size", label: cat.sizeType === "calzado" ? "Talla de calzado" : "Talla", opts: p.sizes, guide: ["ropa", "calzado"].includes(cat.sizeType) });
     const related = [...PRODUCTS.filter((x) => x.sub === p.sub && x.id !== p.id), ...PRODUCTS.filter((x) => x.cat === p.cat && x.sub !== p.sub)].slice(0, 4);
     const sel = {};
-    groups.forEach((g) => { if (g.opts.length === 1) sel[g.key] = g.opts[0]; });
+    if (p.colors.length === 1) sel.color = p.colors[0];
+    if (p.sizes.length === 1) sel.size = p.sizes[0];
+    const maxQty = p.stock || 10;
+    const stockText = !p.available ? "Agotado" : p.stock ? (p.stock === 1 ? "1 unidad disponible" : `${p.stock} unidades disponibles`) : "Disponible";
+    const alt = (n) => `${p.imageAlt || p.name}${n ? `, foto ${n}` : ""}`;
 
     view(`<div class="wrap"><div style="padding-top:20px">${crumbs([["Inicio", "#/"], [cat.name, `#/${cat.id}`], [sub.name, `#/${cat.id}/${sub.id}`], [p.name]])}</div>
       <div class="pdp">
         <div class="gallery"><div class="thumbs" id="thumbs"></div>
-          <button class="g-main" id="gMain" type="button" aria-label="Ampliar foto"><img id="gImg" alt="" width="400" height="500"><span class="g-zoom" aria-hidden="true">Ampliar</span>${p.isNew ? '<span class="badge">Nuevo</span>' : ""}</button></div>
+          <button class="g-main" id="gMain" type="button"><img id="gImg" alt="" width="400" height="500"><span class="g-zoom" id="gZoom" aria-hidden="true">Ampliar</span>${p.isNew ? '<span class="badge">Nuevo</span>' : ""}</button></div>
         <div class="pdp-info">
           <span class="eyebrow">${esc(sub.name)}</span>
           <h1>${esc(p.name)}</h1>
-          <div class="pdp-price">${money(p.price)}</div>
-          <div class="stock ${p.available ? "" : "out"}">${p.available ? "Disponible" : "Agotado"}</div>
-          <p>${esc(p.description)}</p>
+          <div class="pdp-price" id="pdpPrice">${priceLabel(p)}</div>
+          <div class="stock ${p.available ? "" : "out"}">${stockText}</div>
+          ${p.description ? `<p>${esc(p.description)}</p>` : ""}
           <form id="buyForm" novalidate>
             ${groups.map((g) => `<fieldset class="var-block" data-key="${g.key}"><div class="var-label"><span>${g.label}<span class="chosen" data-chosen></span></span>${g.guide ? '<button type="button" data-guide>Guía de tallas</button>' : ""}</div>
-              <div class="var-opts">${g.opts.map((o) => {
-                const out = !p.available || p.soldOut.includes(o);
-                return `<label class="var-opt"><input type="radio" name="${g.key}" value="${esc(o)}" ${out ? "disabled" : ""} ${sel[g.key] === o ? "checked" : ""}><span>${g.sw ? `<i class="sw" style="background:${hex(o)}"></i>` : ""}${esc(o)}</span></label>`;
-              }).join("")}</div><div class="var-error" role="alert"></div></fieldset>`).join("")}
-            <div class="buy-row"><div class="qty"><button type="button" id="qMinus" aria-label="Quitar uno">−</button><input id="qty" type="number" min="1" max="10" value="1" aria-label="Cantidad"><button type="button" id="qPlus" aria-label="Agregar uno">+</button></div>
+              <div class="var-opts">${g.opts.map((o) => `<label class="var-opt"><input type="radio" name="${g.key}" value="${esc(o)}" ${!p.available ? "disabled" : ""} ${sel[g.key] === o ? "checked" : ""}><span>${g.sw ? `<i class="sw" style="background:${hex(o)}"></i>` : ""}${esc(o)}</span></label>`).join("")}</div>
+              <div class="var-error" role="alert"></div></fieldset>`).join("")}
+            <div class="buy-row"><div class="qty"><button type="button" id="qMinus" aria-label="Quitar uno">−</button><input id="qty" type="number" min="1" max="${maxQty}" value="1" aria-label="Cantidad"><button type="button" id="qPlus" aria-label="Agregar uno">+</button></div>
               <button class="btn btn-primary" type="submit" ${p.available ? "" : "disabled"}>${p.available ? "Agregar al carrito" : "Agotado"}</button></div>
           </form>
-          <p class="demo-note"><span class="demo-flag">Demo</span> Producto de ejemplo: nombre, precio, fotos y especificaciones se reemplazarán con información real de Flowers.</p>
           <div class="acc">
-            <details open><summary>Detalles</summary><div class="acc-body"><ul>${p.details.map((d) => `<li>${esc(d)}</li>`).join("")}</ul>${p.sub === "llaveros" ? '<p class="pending" style="margin-top:12px">Colaboración, licencia y autenticidad: sin información confirmada por Flowers.</p>' : ""}</div></details>
-            <details><summary>Cuidados</summary><div class="acc-body"><ul>${p.care.map((d) => `<li>${esc(d)}</li>`).join("")}</ul></div></details>
+            <details open><summary>Detalles</summary><div class="acc-body"><ul>
+              <li>Categoría: ${esc(cat.name)} · ${esc(sub.name)}</li>
+              ${p.brands.length ? `<li>Marca: ${esc(p.brands.join(" x "))}</li>` : ""}
+              ${p.colors.length ? `<li>Colores: ${esc(p.colors.join(", "))}</li>` : ""}
+              ${p.sizes.length ? `<li>Tallas según inventario: ${esc(p.sizes.join(" · "))}</li>` : ""}
+              ${(p.details || []).map((d) => `<li>${esc(d)}</li>`).join("")}</ul>
+              <p class="pending" style="margin-top:12px">Descripción y especificaciones pendientes de completar por Flowers.</p></div></details>
+            <details><summary>Cuidados</summary><div class="acc-body"><p class="pending">Información pendiente de completar por Flowers.</p></div></details>
             <details><summary>Envíos y cambios</summary><div class="acc-body"><p class="pending">Plazos, costos y condiciones pendientes de completar. <a href="#/info/envios" style="text-decoration:underline">Ver página de envíos y cambios</a>.</p></div></details>
-            ${guide ? `<details id="guideAcc"><summary>Guía de tallas</summary><div class="acc-body">${guide}</div></details>` : ""}
+            ${groups.some((g) => g.guide) ? `<details id="guideAcc"><summary>Guía de tallas</summary><div class="acc-body">${sizeGuideHtml()}</div></details>` : ""}
           </div>
         </div>
       </div>
       <section class="section" style="padding-top:24px"><div class="section-head"><h2>Productos relacionados</h2></div>${grid(related)}</section></div>`, p.name);
 
-    /* Galería */
-    let gi = 0, imgs = productImages(p, sel.color);
+    /* Galería: fotos reales (por color si existen) o aviso «Imagen próximamente». */
+    let gi = 0, imgs = [];
+    const gMain = $("#gMain");
     const paint = () => {
-      $("#gImg").src = imgs[gi]; $("#gImg").alt = `${p.name}, foto ${gi + 1} de ${imgs.length}`;
-      $("#thumbs").innerHTML = imgs.map((s, i) => `<button class="thumb" type="button" aria-label="Ver foto ${i + 1}" ${i === gi ? 'aria-current="true"' : ""} data-i="${i}"><img src="${s}" alt="" loading="lazy"></button>`).join("");
+      const real = imagesFor(p, sel.color);
+      imgs = real.length ? real : [Art.placeholder()];
+      gi = Math.min(gi, imgs.length - 1);
+      $("#gImg").src = imgs[gi]; $("#gImg").alt = real.length ? alt(imgs.length > 1 ? gi + 1 : 0) : `${p.name} (imagen próximamente)`;
+      gMain.classList.toggle("no-photo", !real.length);
+      gMain.disabled = !real.length; $("#gZoom").hidden = !real.length;
+      gMain.setAttribute("aria-label", real.length ? "Ampliar foto" : "Imagen próximamente");
+      $("#thumbs").innerHTML = imgs.length > 1 ? imgs.map((s, i) => `<button class="thumb" type="button" aria-label="Ver foto ${i + 1}" ${i === gi ? 'aria-current="true"' : ""} data-i="${i}"><img src="${s}" alt="" loading="lazy"></button>`).join("") : "";
       $$(".thumb").forEach((b) => b.addEventListener("click", () => { gi = +b.dataset.i; paint(); }));
     };
     paint();
-    $("#gMain").addEventListener("click", () => openLightbox(imgs, gi, p.name, (i) => { gi = i; paint(); }));
+    gMain.addEventListener("click", () => { if (!gMain.disabled) openLightbox(imgs, gi, p.name, (i) => { gi = i; paint(); }); });
 
-    /* Variantes */
+    /* Variantes: las combinaciones sin talla/color disponible se desactivan; el precio sigue al color. */
     const form = $("#buyForm");
     const showChosen = () => groups.forEach((g) => { const el = $(`[data-key="${g.key}"] [data-chosen]`); if (el) el.textContent = sel[g.key] ? `: ${sel[g.key]}` : ""; });
-    showChosen();
+    const refresh = () => {
+      $$("input[name=size]", form).forEach((i) => { i.disabled = !p.available || (!!sel.color && !variantOf(p, sel.color).sizes.includes(i.value)); });
+      $("#pdpPrice").textContent = sel.color ? money(variantOf(p, sel.color).price) : priceLabel(p);
+      showChosen();
+    };
+    refresh();
     form.addEventListener("change", (e) => {
       if (e.target.type !== "radio") return;
-      sel[e.target.name] = e.target.value; showChosen();
+      sel[e.target.name] = e.target.value;
       $(`[data-key="${e.target.name}"] .var-error`).textContent = "";
-      if (e.target.name === "color" && !(p.images && p.images.length)) { imgs = productImages(p, sel.color); paint(); }
+      refresh();
+      if (e.target.name === "color") {
+        if (sel.size && !variantOf(p, sel.color).sizes.includes(sel.size)) { sel.size = ""; $$("input[name=size]", form).forEach((i) => { i.checked = false; }); showChosen(); }
+        gi = 0; paint();
+      }
     });
     const gb = $("[data-guide]"); if (gb) gb.addEventListener("click", () => { const a = $("#guideAcc"); a.open = true; a.scrollIntoView({ behavior: "smooth", block: "center" }); });
-    const qty = $("#qty"), clampQ = () => { qty.value = Math.max(1, Math.min(10, parseInt(qty.value, 10) || 1)); };
+    const qty = $("#qty"), clampQ = () => { qty.value = Math.max(1, Math.min(maxQty, parseInt(qty.value, 10) || 1)); };
     $("#qMinus").addEventListener("click", () => { qty.value = (parseInt(qty.value, 10) || 1) - 1; clampQ(); });
     $("#qPlus").addEventListener("click", () => { qty.value = (parseInt(qty.value, 10) || 1) + 1; clampQ(); });
     qty.addEventListener("change", clampQ);
@@ -504,11 +550,11 @@
       const missing = groups.filter((g) => !sel[g.key]);
       $$(".var-error").forEach((x) => { x.textContent = ""; });
       if (missing.length) {
-        missing.forEach((g) => { $(`[data-key="${g.key}"] .var-error`).textContent = `Selecciona ${g.key === "color" ? "un color" : g.key === "size" ? "una talla" : "una capacidad"} para continuar.`; });
+        missing.forEach((g) => { $(`[data-key="${g.key}"] .var-error`).textContent = `Selecciona ${g.key === "color" ? "un color" : "una talla"} para continuar.`; });
         const first = $(`[data-key="${missing[0].key}"] input:not(:disabled)`); if (first) first.focus();
         return;
       }
-      addToCart({ id: p.id, size: sel.size || "", color: sel.color || "", capacity: sel.capacity || "", qty: parseInt(qty.value, 10) });
+      addToCart({ id: p.id, size: sel.size || "", color: sel.color || "", capacity: "", qty: parseInt(qty.value, 10) });
       openMini(`«${p.name}» se agregó a tu carrito.`);
     });
   }
@@ -540,7 +586,7 @@
     const m = $("#miniCart"), items = cart.slice().reverse();
     m.innerHTML = `<div class="mc-head"><h2 id="miniCartTitle">Tu carrito (${cartCount()})</h2><button class="icon-btn" id="mcClose" aria-label="Cerrar carrito"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19"/></svg></button></div>
       ${message ? `<div class="mc-ok" role="status">✓ ${esc(message)}</div>` : ""}
-      <div class="mc-body">${items.length ? items.map((i) => { const p = byId(i.id); return `<div class="mc-item"><img src="${productImage(p, 0, i.color)}" alt="${esc(p.name)}"><div><div class="ci-name">${esc(p.name)}</div><div>${esc(variantText(i))}</div><div>Cant.: ${i.qty}</div></div><div class="ci-price">${money(p.price * i.qty)}</div></div>`; }).join("") : "<p>Tu carrito está vacío.</p>"}</div>
+      <div class="mc-body">${items.length ? items.map((i) => { const p = byId(i.id); return `<div class="mc-item"><img src="${productImage(p, i.color)}" alt="${esc(p.name)}"><div><div class="ci-name">${esc(p.name)}</div><div>${esc(variantText(i))}</div><div>Cant.: ${i.qty}</div></div><div class="ci-price">${money(unitPrice(i) * i.qty)}</div></div>`; }).join("") : "<p>Tu carrito está vacío.</p>"}</div>
       <div class="mc-foot"><div class="sum-row"><span>Subtotal</span><b>${money(cartSubtotal())}</b></div>
         <a class="btn btn-primary" href="#/checkout">Finalizar compra</a><a class="btn btn-ghost" href="#/carrito">Ver carrito</a><button class="btn btn-ghost" id="mcContinue" type="button">Seguir comprando</button></div>`;
     m.hidden = false; openScrim("mini");
@@ -558,11 +604,11 @@
     }
     view(`<div class="wrap"><div style="padding-top:20px">${crumbs([["Inicio", "#/"], ["Carrito"]])}<h1>Tu carrito</h1></div>
       <div class="cart-page"><section aria-label="Productos en el carrito">${cart.map((i, idx) => { const p = byId(i.id); return `<article class="cart-item">
-        <a href="#/producto/${p.id}"><img src="${productImage(p, 0, i.color)}" alt="${esc(p.name)}" width="110" height="138"></a>
+        <a href="#/producto/${p.id}"><img src="${productImage(p, i.color)}" alt="${esc(p.name)}" width="110" height="138"></a>
         <div><a class="ci-name" href="#/producto/${p.id}">${esc(p.name)}</a><div class="ci-var">${esc(variantText(i)) || "&nbsp;"}</div>
           <div class="qty"><button type="button" data-q="-1" data-i="${idx}" aria-label="Quitar uno de ${esc(p.name)}">−</button><output aria-label="Cantidad" aria-live="polite">${i.qty}</output><button type="button" data-q="1" data-i="${idx}" aria-label="Agregar uno de ${esc(p.name)}">+</button></div>
           <button class="ci-remove" type="button" data-rm="${idx}">Eliminar</button></div>
-        <div class="ci-price">${money(p.price * i.qty)}</div></article>`; }).join("")}
+        <div class="ci-price">${money(unitPrice(i) * i.qty)}</div></article>`; }).join("")}
         <p style="margin-top:20px"><a class="link-arrow" href="#/catalogo">← Continuar comprando</a></p></section>
         <aside class="summary" aria-label="Resumen"><h2>Resumen</h2>
           <div class="sum-row"><span>Subtotal (${plural(cartCount(), "artículo", "artículos")})</span><b>${money(cartSubtotal())}</b></div>${shippingRow()}
@@ -591,7 +637,7 @@
         <div class="form-msg err" id="coMsg" role="alert"></div>
         <button class="btn btn-primary" type="submit">Continuar al pago (demo)</button></form>
         <aside class="summary" aria-label="Resumen del pedido"><h2>Tu pedido</h2>
-          ${cart.map((i) => { const p = byId(i.id); return `<div class="sum-row"><span>${i.qty} × ${esc(p.name)}<br><small>${esc(variantText(i))}</small></span><span>${money(p.price * i.qty)}</span></div>`; }).join("")}
+          ${cart.map((i) => { const p = byId(i.id); return `<div class="sum-row"><span>${i.qty} × ${esc(p.name)}<br><small>${esc(variantText(i))}</small></span><span>${money(unitPrice(i) * i.qty)}</span></div>`; }).join("")}
           <div class="sum-row" style="border-top:1px solid var(--line);margin-top:8px"><span>Subtotal</span><b>${money(cartSubtotal())}</b></div>${shippingRow()}
           ${CFG.shipping.enabled ? `<div class="sum-row total"><span>Total</span><span>${money(cartSubtotal() + CFG.shipping.flat)}</span></div>` : `<p class="sum-note">${esc(CFG.shipping.note)}</p>`}
           <a class="btn btn-ghost btn-block" href="#/carrito">Volver al carrito</a></aside></div></div>`, "Finalizar compra");
@@ -609,7 +655,7 @@
   function renderInfo(key) {
     const pg = PAGES[key];
     let extra = "";
-    if (key === "tallas") extra = `<h2 style="font-size:1.4rem;margin:28px 0 12px">Ropa</h2>${sizeGuideHtml({ sub: "polos" })}<h2 style="font-size:1.4rem;margin:28px 0 12px">Calzado</h2>${sizeGuideHtml({ sub: "zapatillas" })}`;
+    if (key === "tallas") extra = sizeGuideHtml();
     if (key === "contacto") {
       const c = CFG.contact;
       extra = `<div class="contact-grid"><div><h3>Escríbenos</h3><ul class="pending-list"><li>${c.email ? esc(c.email) : "Correo de contacto"}</li><li>${c.phone ? esc(c.phone) : "Teléfono / WhatsApp"}</li><li>${c.hours ? esc(c.hours) : "Horario de atención"}</li></ul></div>

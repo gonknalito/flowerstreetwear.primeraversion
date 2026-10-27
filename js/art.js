@@ -125,5 +125,6 @@
       { sub: "poleras", color: "#68ACDC", x: -60, y: 40, s: 1.25, r: -4 }, { sub: "bolsos", color: "#5C509C", x: 190, y: 220, s: 0.9, r: 6 }, { sub: "llaveros", color: "#E50373", x: 280, y: 20, s: 0.7, r: 10 }], { w: 800, h: 900, bg: "#ffffff", accent: "#5C509C" })
   };
 
-  window.FlowersArt = { product, scene: (k) => SCENES[k](), colors: C };
+  const PH = uri(wrap(400, 500, `<defs>${dots("p", C.purple)}</defs><rect width="400" height="500" fill="#f4f4f9"/><rect width="400" height="500" fill="url(#p)"/><path d="M150 232 L250 212 L250 222 L150 242Z" fill="${C.pink}"/><text x="200" y="272" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="15" font-weight="700" letter-spacing="3" fill="${C.gray}">IMAGEN</text><text x="200" y="296" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="15" font-weight="700" letter-spacing="3" fill="${C.gray}">PRÓXIMAMENTE</text>`));
+  window.FlowersArt = { product, placeholder: () => PH, scene: (k) => SCENES[k](), colors: C };
 })();

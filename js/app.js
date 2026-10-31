@@ -111,7 +111,7 @@
     return `<a class="p-card" href="#/producto/${p.id}">
       <div class="p-media ${photo ? "" : "no-photo"}">
         <img src="${productImage(p)}" alt="${esc(photo ? (p.imageAlt || p.name) : `${p.name} (imagen próximamente)`)}" width="400" height="500" loading="lazy" decoding="async">
-        ${p.isNew ? '<span class="badge">Nuevo</span>' : ""}${!p.available ? '<span class="badge out">Agotado</span>' : ""}
+        ${p.isNew ? '<span class="badge">Nuevo</span>' : ""}${!p.available ? `<span class="badge out">${p.unconfirmed ? "Próximamente" : "Agotado"}</span>` : ""}
       </div>
       <div class="p-info">
         <div class="p-name">${esc(p.name)}</div>
@@ -156,7 +156,7 @@
           <div class="mn-sub" id="mn-${c.id}" hidden><a class="all" href="#/${c.id}">Ver todo ${esc(c.name)}</a>
           ${c.subs.map((s) => `<a href="#/${c.id}/${s.id}">${esc(s.name)}</a>`).join("")}</div></li>`).join("")}
       </ul>
-      <div class="mn-foot"><a class="btn btn-primary" href="#/carrito">Ver carrito</a><a class="btn btn-ghost" href="${CFG.instagramUrl}" target="_blank" rel="noopener">Instagram</a></div>`;
+      <div class="mn-foot"><a class="btn btn-ghost" id="mnAccount" href="#/cuenta">Mi cuenta</a><a class="btn btn-primary" href="#/carrito">Ver carrito</a><a class="btn btn-ghost" href="${CFG.instagramUrl}" target="_blank" rel="noopener">Instagram</a></div>`;
   }
   function buildFooter() {
     $("#footer").innerHTML = `<div class="wrap">
@@ -215,7 +215,7 @@
     observeReveal();
   }
   function route() {
-    closeMobileNav(); closeMini(); closeFilters(); closeLightbox();
+    closeMobileNav(); closeMini(); closeFilters(); closeLightbox(); clearPoll();
     if (document.activeElement && document.activeElement.blur && document.activeElement !== document.body) document.activeElement.blur();
     const { parts, q } = parseHash();
     const [a, b] = parts;
@@ -225,6 +225,11 @@
     else if (a === "catalogo") renderCatalog({ key: "catalogo", title: "Todo el catálogo", lead: "Explora todas las categorías.", list: PRODUCTS, crumbs: [["Inicio", "#/"], ["Catálogo"]], filters: ["cat", "brand", "size", "color", "price", "availability"], q });
     else if (a === "buscar") renderSearch(q);
     else if (a === "carrito") renderCart();
+    else if (a === "cuenta") renderAccount(b, parts[2]);
+    else if (a === "verificar") renderVerify(q);
+    else if (a === "recuperar") renderForgot();
+    else if (a === "restablecer") renderReset(q);
+    else if (a === "pedido" && b) renderOrderStatus(b, q);
     else if (a === "checkout") renderCheckout();
     else if (a === "info" && PAGES[b]) renderInfo(b);
     else if (a === "producto" && byId(b)) renderProduct(byId(b));
@@ -347,7 +352,7 @@
       <div class="wrap catalog">
         <aside class="filters" id="filters" aria-label="Filtros" ${fp ? "" : "hidden"}>
           <div class="filters-head"><h2>Filtros</h2><button type="button" class="icon-btn filters-close" id="filtersClose" aria-label="Cerrar filtros"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19"/></svg></button></div>
-          <form id="filterForm" onsubmit="return false">${fp}</form>
+          <form id="filterForm">${fp}</form>
           <div class="filters-foot"><button type="button" class="btn btn-ghost" id="filtersClear">Limpiar</button><button type="button" class="btn btn-primary" id="filtersApply">Ver resultados</button></div>
         </aside>
         <section aria-label="Productos"><div id="results"></div></section>
@@ -360,6 +365,7 @@
         if (i.type === "checkbox") i.checked = i.name === "av" ? st.av : (st[i.name] || []).includes(i.value);
         else i.value = st[i.name] || "";
       });
+      form.addEventListener("submit", (e) => e.preventDefault());
       form.addEventListener("input", () => { readForm(); applyCatalog(); });
     }
     $("#filtersClose").addEventListener("click", closeFilters);
@@ -468,7 +474,7 @@
     if (p.colors.length === 1) sel.color = p.colors[0];
     if (p.sizes.length === 1) sel.size = p.sizes[0];
     const maxQty = p.stock || 10;
-    const stockText = !p.available ? "Agotado" : p.stock ? (p.stock === 1 ? "1 unidad disponible" : `${p.stock} unidades disponibles`) : "Disponible";
+    const stockText = !p.available ? (p.unconfirmed ? "Consultar disponibilidad" : "Agotado") : p.stock ? (p.stock === 1 ? "1 unidad disponible" : `${p.stock} unidades disponibles`) : "Disponible";
     const alt = (n) => `${p.imageAlt || p.name}${n ? `, foto ${n}` : ""}`;
 
     view(`<div class="wrap"><div style="padding-top:20px">${crumbs([["Inicio", "#/"], [cat.name, `#/${cat.id}`], [sub.name, `#/${cat.id}/${sub.id}`], [p.name]])}</div>
@@ -486,8 +492,9 @@
               <div class="var-opts">${g.opts.map((o) => `<label class="var-opt"><input type="radio" name="${g.key}" value="${esc(o)}" ${!p.available ? "disabled" : ""} ${sel[g.key] === o ? "checked" : ""}><span>${g.sw ? `<i class="sw" style="background:${hex(o)}"></i>` : ""}${esc(o)}</span></label>`).join("")}</div>
               <div class="var-error" role="alert"></div></fieldset>`).join("")}
             <div class="buy-row"><div class="qty"><button type="button" id="qMinus" aria-label="Quitar uno">−</button><input id="qty" type="number" min="1" max="${maxQty}" value="1" aria-label="Cantidad"><button type="button" id="qPlus" aria-label="Agregar uno">+</button></div>
-              <button class="btn btn-primary" type="submit" ${p.available ? "" : "disabled"}>${p.available ? "Agregar al carrito" : "Agotado"}</button></div>
+              <button class="btn btn-primary" type="submit" ${p.available ? "" : "disabled"}>${p.available ? "Agregar al carrito" : (p.unconfirmed ? "No disponible por ahora" : "Agotado")}</button></div>
           </form>
+          ${SRV.whatsapp ? `<a class="btn btn-ghost btn-block wa-btn" id="waBtn" target="_blank" rel="noopener" href="${esc(waLink("Hola, quiero consultar por " + p.name + ". " + location.origin + "/#/producto/" + p.id))}">Consultar por WhatsApp</a>` : ""}
           <div class="acc">
             <details open><summary>Detalles</summary><div class="acc-body"><ul>
               <li>Categoría: ${esc(cat.name)} · ${esc(sub.name)}</li>
@@ -525,7 +532,8 @@
     const form = $("#buyForm");
     const showChosen = () => groups.forEach((g) => { const el = $(`[data-key="${g.key}"] [data-chosen]`); if (el) el.textContent = sel[g.key] ? `: ${sel[g.key]}` : ""; });
     const refresh = () => {
-      $$("input[name=size]", form).forEach((i) => { i.disabled = !p.available || (!!sel.color && !variantOf(p, sel.color).sizes.includes(i.value)); });
+      const sizeOut = (size) => { const vs = sel.color ? [variantOf(p, sel.color)] : p.variants; return vs.every((v) => !v.sizes.includes(size) || (v.soldOut || []).includes(size)); };
+      $$("input[name=size]", form).forEach((i) => { i.disabled = !p.available || sizeOut(i.value); if (i.disabled && i.checked) { i.checked = false; sel.size = ""; } });
       $("#pdpPrice").textContent = sel.color ? money(variantOf(p, sel.color).price) : priceLabel(p);
       showChosen();
     };
@@ -540,6 +548,7 @@
         gi = 0; paint();
       }
     });
+    const wb = $("#waBtn"); if (wb) wb.addEventListener("click", () => { wb.href = waLink(`Hola, quiero consultar por ${p.name}${[sel.color, sel.size && "talla " + sel.size].filter(Boolean).length ? " (" + [sel.color, sel.size && "talla " + sel.size].filter(Boolean).join(", ") + ")" : ""}. ${location.origin}/#/producto/${p.id}`); });
     const gb = $("[data-guide]"); if (gb) gb.addEventListener("click", () => { const a = $("#guideAcc"); a.open = true; a.scrollIntoView({ behavior: "smooth", block: "center" }); });
     const qty = $("#qty"), clampQ = () => { qty.value = Math.max(1, Math.min(maxQty, parseInt(qty.value, 10) || 1)); };
     $("#qMinus").addEventListener("click", () => { qty.value = (parseInt(qty.value, 10) || 1) - 1; clampQ(); });
@@ -596,7 +605,7 @@
   function closeMini() { const m = $("#miniCart"); if (m.hidden) return; m.hidden = true; if (scrimOwner === "mini") closeScrim(); }
 
   /* ---------- Página de carrito ---------- */
-  const shippingRow = () => CFG.shipping.enabled ? `<div class="sum-row"><span>Envío</span><span>${money(CFG.shipping.flat)}</span></div>` : `<div class="sum-row"><span>Envío</span><span>Por calcular</span></div>`;
+  const shippingRow = () => `<div class="sum-row"><span>Envío</span><span>Se calcula al pagar</span></div>`;
   function renderCart() {
     if (!cart.length) {
       view(`<div class="wrap"><section class="info"><h1>Tu carrito</h1><div class="empty" style="margin-top:24px"><h2>Tu carrito está vacío</h2><p>Explora el catálogo y encuentra tu próxima pieza.</p><a class="btn btn-primary" href="#/catalogo">Ir a comprar</a></div></section></div>`, "Carrito");
@@ -612,45 +621,254 @@
         <p style="margin-top:20px"><a class="link-arrow" href="#/catalogo">← Continuar comprando</a></p></section>
         <aside class="summary" aria-label="Resumen"><h2>Resumen</h2>
           <div class="sum-row"><span>Subtotal (${plural(cartCount(), "artículo", "artículos")})</span><b>${money(cartSubtotal())}</b></div>${shippingRow()}
-          ${CFG.shipping.enabled ? `<div class="sum-row total"><span>Total</span><span>${money(cartSubtotal() + CFG.shipping.flat)}</span></div>` : `<p class="sum-note">${esc(CFG.shipping.note)}</p>`}
+          <p class="sum-note">El costo de envío se calcula en el siguiente paso, según la entrega que elijas.</p>
           <a class="btn btn-primary btn-block" href="#/checkout">Finalizar compra</a></aside></div></div>`, "Carrito");
     $$("[data-q]").forEach((b) => b.addEventListener("click", () => { const it = cart[+b.dataset.i]; it.qty = Math.max(1, Math.min(20, it.qty + +b.dataset.q)); saveCart(); const y = scrollY; renderCart(); scrollTo(0, y); const nb = $(`[data-q="${b.dataset.q}"][data-i="${b.dataset.i}"]`); if (nb) nb.focus(); }));
     $$("[data-rm]").forEach((b) => b.addEventListener("click", () => { const it = cart[+b.dataset.rm]; cart.splice(+b.dataset.rm, 1); saveCart(); renderCart(); toast(`Se eliminó «${byId(it.id).name}» del carrito.`); }));
   }
 
-  /* ---------- Proceso de compra (demostración) ---------- */
-  function renderCheckout() {
-    if (!cart.length) { location.hash = "#/carrito"; return; }
-    view(`<div class="wrap"><div style="padding-top:20px">${crumbs([["Inicio", "#/"], ["Carrito", "#/carrito"], ["Finalizar compra"]])}<h1>Finalizar compra</h1></div>
-      <div class="cart-page"><form class="checkout-form" id="coForm" novalidate>
-        <div class="banner"><b>Proceso de demostración.</b> Aún no hay una pasarela de pago conectada: no se realizará ningún cobro ni se creará ningún pedido.</div>
-        <h2 style="font-size:1.3rem">Contacto</h2>
-        <div class="field"><label for="coEmail">Correo electrónico</label><input id="coEmail" name="email" type="email" autocomplete="email" required></div>
-        <div class="field-row"><div class="field"><label for="coName">Nombre y apellidos</label><input id="coName" name="name" autocomplete="name" required></div>
-          <div class="field"><label for="coPhone">Teléfono</label><input id="coPhone" name="phone" type="tel" autocomplete="tel" required></div></div>
-        <h2 style="font-size:1.3rem;margin-top:10px">Dirección de entrega</h2>
-        <div class="field"><label for="coAddr">Dirección</label><input id="coAddr" name="address" autocomplete="street-address" required></div>
-        <div class="field-row"><div class="field"><label for="coCity">Distrito / ciudad</label><input id="coCity" name="city" autocomplete="address-level2" required></div>
-          <div class="field"><label for="coRef">Referencia (opcional)</label><input id="coRef" name="ref"></div></div>
-        <h2 style="font-size:1.3rem;margin-top:10px">Pago</h2>
-        <p class="pending">Medios de pago pendientes de conectar (pasarela por definir).</p>
-        <div class="form-msg err" id="coMsg" role="alert"></div>
-        <button class="btn btn-primary" type="submit">Continuar al pago (demo)</button></form>
-        <aside class="summary" aria-label="Resumen del pedido"><h2>Tu pedido</h2>
-          ${cart.map((i) => { const p = byId(i.id); return `<div class="sum-row"><span>${i.qty} × ${esc(p.name)}<br><small>${esc(variantText(i))}</small></span><span>${money(unitPrice(i) * i.qty)}</span></div>`; }).join("")}
-          <div class="sum-row" style="border-top:1px solid var(--line);margin-top:8px"><span>Subtotal</span><b>${money(cartSubtotal())}</b></div>${shippingRow()}
-          ${CFG.shipping.enabled ? `<div class="sum-row total"><span>Total</span><span>${money(cartSubtotal() + CFG.shipping.flat)}</span></div>` : `<p class="sum-note">${esc(CFG.shipping.note)}</p>`}
-          <a class="btn btn-ghost btn-block" href="#/carrito">Volver al carrito</a></aside></div></div>`, "Finalizar compra");
-    $("#coForm").addEventListener("submit", (e) => {
-      e.preventDefault();
-      const f = e.target, msg = $("#coMsg"), bad = $$("input[required]", f).find((i) => !i.value.trim() || (i.type === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(i.value)));
-      if (bad) { msg.className = "form-msg err"; msg.textContent = "Completa correctamente todos los campos obligatorios."; bad.focus(); return; }
-      msg.className = "banner"; msg.setAttribute("role", "status");
-      msg.innerHTML = CFG.payments.gatewayConnected ? "Redirigiendo al pago…" : "<b>Demostración:</b> la pasarela de pago aún no está conectada. No se procesó ningún pago y no se generó ningún pedido. Tu carrito se mantiene intacto.";
-      /* CONEXIÓN PENDIENTE: aquí se enviarían los datos del formulario y el carrito (cart) a la pasarela de pago / backend. */
+  /* ---------- Servidor: cuenta, checkout y pedidos ---------- */
+  let ME = null;
+  let SRV = { shipping: [], whatsapp: "", contact: {}, payments: { simulated: true }, reserveMinutes: 20, dev: false };
+  async function api(path, opts = {}) {
+    const o = { method: opts.method || "GET", credentials: "same-origin", headers: { "X-Flowers": "1" } };
+    if (opts.body !== undefined) { o.body = JSON.stringify(opts.body); o.headers["Content-Type"] = "application/json"; }
+    try {
+      const r = await fetch(path, o); let d = null;
+      try { d = await r.json(); } catch (e) { /* sin cuerpo */ }
+      return { ok: r.ok, status: r.status, data: d };
+    } catch (e) { return { ok: false, status: 0, data: { error: "No hay conexión con el servidor. Inténtalo de nuevo." } }; }
+  }
+  const PAY_LABEL = { awaiting: "Pago por realizar", pending: "Pago pendiente de confirmación", paid: "Pagado", rejected: "Pago rechazado", cancelled: "Pago cancelado", expired: "Reserva vencida", refunded: "Reembolsado" };
+  const FUL_LABEL = { none: "—", new: "Recibido", preparing: "En preparación", shipped: "Enviado", delivered: "Entregado", cancelled: "Cancelado" };
+  const fmtDate = (s) => { try { return new Date(s).toLocaleString("es-PE", { dateStyle: "medium", timeStyle: "short" }); } catch (e) { return s; } };
+  const cents = (n) => money(n / 100);
+  const demoBanner = () => (SRV.payments && SRV.payments.simulated ? `<div class="banner"><b>MODO DE DEMOSTRACIÓN.</b> Los pagos y los correos son simulados: no se cobra dinero real ni se envía nada por internet.</div>` : "");
+  let pollTimer = null;
+  const clearPoll = () => { if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; } };
+
+  function waLink(text) { return SRV.whatsapp ? `https://wa.me/${SRV.whatsapp}?text=${encodeURIComponent(text)}` : ""; }
+  function buildWhatsapp() {
+    const old = $("#waFloat"); if (old) old.remove();
+    if (!SRV.whatsapp) return;
+    const a = document.createElement("a");
+    a.id = "waFloat"; a.className = "wa-float"; a.target = "_blank"; a.rel = "noopener";
+    a.href = waLink("Hola Flowers, tengo una consulta."); a.setAttribute("aria-label", "Consultar por WhatsApp");
+    a.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 0 1-11.8 7L4 20l1.1-4.1A8 8 0 1 1 20 12z"/><path d="M9 9c.3 2.6 2.4 4.7 5 5l1.2-1.2-1.8-.9-.8.6c-.9-.4-1.6-1.100-2-2l.6-.8L10.300 7.800z"/></svg><span>Consultas</span>`;
+    document.body.appendChild(a);
+  }
+  function updateAccountLink() {
+    const l = $("#accountLink"); if (!l) return;
+    l.setAttribute("aria-label", ME ? `Mi cuenta (${ME.name || ME.email})` : "Iniciar sesión o crear cuenta");
+    l.classList.toggle("logged", !!ME);
+    const m = $("#mnAccount"); if (m) m.textContent = ME ? "Mi cuenta" : "Iniciar sesión / Crear cuenta";
+  }
+  async function refreshMe() { const r = await api("/api/auth/me"); ME = r.ok && r.data ? r.data.user : null; updateAccountLink(); }
+
+  const errBox = (id) => `<div class="form-msg err" id="${id}" role="alert"></div>`;
+  const showErr = (id, msg) => { const e = $("#" + id); if (e) { e.className = "form-msg err"; e.textContent = msg; } };
+  const showOk = (id, msg) => { const e = $("#" + id); if (e) { e.className = "form-msg okmsg"; e.textContent = msg; } };
+  const formData = (f) => Object.fromEntries(new FormData(f).entries());
+
+  /* ----- Cuenta ----- */
+  async function renderAccount(sub, extra) {
+    clearPoll();
+    await refreshMe();
+    if (!ME) return renderAuth();
+    if (ME.role === "admin") {
+      return view(`<div class="wrap"><section class="info">${crumbs([["Inicio", "#/"], ["Mi cuenta"]])}<h1>Cuenta de administrador</h1><p style="margin-top:14px">Las cuentas de administrador se gestionan desde el panel privado.</p><a class="btn btn-primary" href="/admin.html">Ir al panel</a> <button class="btn btn-ghost" id="logoutBtn" type="button">Cerrar sesión</button></section></div>`, "Mi cuenta"), bindLogout();
+    }
+    if (sub === "pedidos") return extra ? renderOrderStatus(extra, {}, true) : renderOrderList();
+    const r = await api("/api/account");
+    const addrs = r.ok ? r.data.addresses : [];
+    view(`<div class="wrap"><section class="info" style="max-width:920px">${crumbs([["Inicio", "#/"], ["Mi cuenta"]])}<h1>Mi cuenta</h1>
+      <p style="margin-top:12px">Hola, <b>${esc(ME.name || ME.email)}</b>. <a class="link-arrow" href="#/cuenta/pedidos">Ver mis pedidos</a></p>
+      <div class="acct-grid">
+        <form id="profileForm" class="checkout-form" novalidate><h2 style="font-size:1.3rem">Mis datos</h2>
+          <div class="field"><label for="pfEmail">Correo</label><input id="pfEmail" value="${esc(ME.email)}" disabled></div>
+          <div class="field"><label for="pfName">Nombre</label><input id="pfName" name="name" value="${esc(ME.name)}" required autocomplete="name"></div>
+          <div class="field"><label for="pfPhone">Teléfono</label><input id="pfPhone" name="phone" value="${esc(ME.phone)}" type="tel" autocomplete="tel"></div>
+          ${errBox("pfMsg")}<button class="btn btn-primary" type="submit">Guardar cambios</button></form>
+        <div><h2 style="font-size:1.3rem;margin-bottom:12px">Mis direcciones</h2>
+          <ul class="addr-list">${addrs.length ? addrs.map((a) => `<li><div><b>${esc(a.label || a.name)}</b>${a.isDefault ? ' <span class="demo-flag">Principal</span>' : ""}<br>${esc([a.line1, a.district, a.city].filter(Boolean).join(", "))}<br><small>${esc(a.name)} · ${esc(a.phone)}</small></div><button class="ci-remove" type="button" data-deladdr="${a.id}">Eliminar</button></li>`).join("") : '<li class="sum-note">Aún no guardaste direcciones.</li>'}</ul>
+          <form id="addrForm" class="checkout-form" novalidate style="margin-top:16px"><h3 style="font-size:1rem">Agregar dirección</h3>
+            <div class="field-row"><div class="field"><label for="adLabel">Nombre de la dirección</label><input id="adLabel" name="label" placeholder="Casa, trabajo…"></div><div class="field"><label for="adName">Quién recibe</label><input id="adName" name="name" required></div></div>
+            <div class="field"><label for="adLine">Dirección</label><input id="adLine" name="line1" required></div>
+            <div class="field-row"><div class="field"><label for="adDist">Distrito</label><input id="adDist" name="district"></div><div class="field"><label for="adCity">Ciudad</label><input id="adCity" name="city" required></div></div>
+            <div class="field-row"><div class="field"><label for="adPhone">Teléfono</label><input id="adPhone" name="phone" type="tel"></div><div class="field"><label for="adRef">Referencia</label><input id="adRef" name="reference"></div></div>
+            ${errBox("adMsg")}<button class="btn btn-ghost" type="submit">Guardar dirección</button></form></div>
+      </div><p style="margin-top:28px"><button class="btn btn-ghost" id="logoutBtn" type="button">Cerrar sesión</button></p></section></div>`, "Mi cuenta");
+    bindLogout();
+    $("#profileForm").addEventListener("submit", async (e) => { e.preventDefault(); const r2 = await api("/api/account", { method: "PUT", body: formData(e.target) }); if (r2.ok) { await refreshMe(); showOk("pfMsg", "Datos guardados."); } else showErr("pfMsg", (r2.data && r2.data.error) || "No se pudo guardar."); });
+    $("#addrForm").addEventListener("submit", async (e) => { e.preventDefault(); const r2 = await api("/api/account/addresses", { method: "POST", body: formData(e.target) }); if (r2.ok) renderAccount(); else showErr("adMsg", (r2.data && r2.data.error) || "No se pudo guardar."); });
+    $$("[data-deladdr]").forEach((b) => b.addEventListener("click", async () => { await api(`/api/account/addresses/${b.dataset.deladdr}`, { method: "DELETE" }); renderAccount(); }));
+  }
+  function bindLogout() { const b = $("#logoutBtn"); if (b) b.addEventListener("click", async () => { await api("/api/auth/logout", { method: "POST" }); ME = null; updateAccountLink(); toast("Cerraste sesión."); location.hash = "#/"; }); }
+
+  function renderAuth(msg) {
+    view(`<div class="wrap"><section class="info" style="max-width:980px">${crumbs([["Inicio", "#/"], ["Mi cuenta"]])}<h1>Mi cuenta</h1>
+      <p style="margin-top:12px">Puedes comprar sin cuenta. Si creas una, verás tus pedidos y guardarás tus direcciones.</p>${msg ? `<div class="banner" style="margin-top:12px">${esc(msg)}</div>` : ""}
+      <div class="acct-grid">
+        <form id="loginForm" class="checkout-form" novalidate><h2 style="font-size:1.3rem">Iniciar sesión</h2>
+          <div class="field"><label for="lgEmail">Correo electrónico</label><input id="lgEmail" name="email" type="email" autocomplete="email" required></div>
+          <div class="field"><label for="lgPw">Contraseña</label><input id="lgPw" name="password" type="password" autocomplete="current-password" required></div>
+          ${errBox("lgMsg")}<div id="lgResend"></div><button class="btn btn-primary" type="submit">Entrar</button>
+          <a class="link-arrow" href="#/recuperar" style="justify-self:start">¿Olvidaste tu contraseña?</a></form>
+        <form id="regForm" class="checkout-form" novalidate><h2 style="font-size:1.3rem">Crear cuenta</h2>
+          <div class="field"><label for="rgName">Nombre</label><input id="rgName" name="name" autocomplete="name" required></div>
+          <div class="field"><label for="rgEmail">Correo electrónico</label><input id="rgEmail" name="email" type="email" autocomplete="email" required></div>
+          <div class="field"><label for="rgPhone">Teléfono (opcional)</label><input id="rgPhone" name="phone" type="tel" autocomplete="tel"></div>
+          <div class="field"><label for="rgPw">Contraseña</label><input id="rgPw" name="password" type="password" autocomplete="new-password" required aria-describedby="rgHelp"><small id="rgHelp" class="sum-note">Mínimo 10 caracteres, con letras y números.</small></div>
+          ${errBox("rgMsg")}<button class="btn btn-primary" type="submit">Crear cuenta</button></form>
+      </div></section></div>`, "Mi cuenta");
+    $("#loginForm").addEventListener("submit", async (e) => {
+      e.preventDefault(); const d = formData(e.target);
+      const r = await api("/api/auth/login", { method: "POST", body: d });
+      if (r.ok) { if (r.data.role === "admin") { location.href = "/admin.html"; return; } await refreshMe(); toast("Sesión iniciada."); renderAccount(); return; }
+      showErr("lgMsg", (r.data && r.data.error) || "No se pudo iniciar sesión.");
+      if (r.data && r.data.extra && r.data.extra.code === "unverified") {
+        $("#lgResend").innerHTML = `<button class="btn btn-ghost" id="lgResendBtn" type="button">Reenviar correo de verificación</button>`;
+        $("#lgResendBtn").addEventListener("click", async () => { await api("/api/auth/resend", { method: "POST", body: { email: d.email } }); showOk("lgMsg", "Si la cuenta existe, enviamos un nuevo correo."); });
+      }
+    });
+    $("#regForm").addEventListener("submit", async (e) => {
+      e.preventDefault(); const r = await api("/api/auth/register", { method: "POST", body: formData(e.target) });
+      if (r.ok) { e.target.reset(); showOk("rgMsg", "Listo. Revisa tu correo para verificar tu cuenta antes de iniciar sesión."); } else showErr("rgMsg", (r.data && r.data.error) || "No se pudo crear la cuenta.");
     });
   }
+  async function renderVerify(q) {
+    view(`<div class="wrap"><section class="info"><h1>Verificando tu correo…</h1><p id="vfMsg" style="margin-top:14px" role="status">Un momento.</p></section></div>`, "Verificar correo");
+    const r = await api("/api/auth/verify", { method: "POST", body: { token: q.token || "" } });
+    const m = $("#vfMsg"); if (!m) return;
+    m.innerHTML = r.ok ? `Tu correo fue verificado. <a class="link-arrow" href="#/cuenta">Inicia sesión</a>.` : esc((r.data && r.data.error) || "No se pudo verificar.");
+    $("main h1").textContent = r.ok ? "¡Correo verificado!" : "No se pudo verificar";
+  }
+  function renderForgot() {
+    view(`<div class="wrap"><section class="info" style="max-width:520px">${crumbs([["Inicio", "#/"], ["Mi cuenta", "#/cuenta"], ["Recuperar contraseña"]])}<h1>Recuperar contraseña</h1>
+      <form id="fgForm" class="checkout-form" novalidate style="margin-top:16px"><div class="field"><label for="fgEmail">Correo electrónico</label><input id="fgEmail" name="email" type="email" required></div>${errBox("fgMsg")}<button class="btn btn-primary" type="submit">Enviar enlace</button></form></section></div>`, "Recuperar contraseña");
+    $("#fgForm").addEventListener("submit", async (e) => { e.preventDefault(); const r = await api("/api/auth/forgot", { method: "POST", body: formData(e.target) }); r.ok ? showOk("fgMsg", "Si el correo existe, te enviamos un enlace para crear una contraseña nueva.") : showErr("fgMsg", (r.data && r.data.error) || "Inténtalo de nuevo."); });
+  }
+  function renderReset(q) {
+    view(`<div class="wrap"><section class="info" style="max-width:520px"><h1>Nueva contraseña</h1>
+      <form id="rsForm" class="checkout-form" novalidate style="margin-top:16px"><div class="field"><label for="rsPw">Contraseña nueva</label><input id="rsPw" name="password" type="password" autocomplete="new-password" required><small class="sum-note">Mínimo 10 caracteres, con letras y números.</small></div>${errBox("rsMsg")}<button class="btn btn-primary" type="submit">Guardar contraseña</button></form></section></div>`, "Nueva contraseña");
+    $("#rsForm").addEventListener("submit", async (e) => { e.preventDefault(); const r = await api("/api/auth/reset", { method: "POST", body: { token: q.token || "", password: formData(e.target).password } }); r.ok ? (showOk("rsMsg", "Contraseña actualizada. Ya puedes iniciar sesión."), setTimeout(() => (location.hash = "#/cuenta"), 1200)) : showErr("rsMsg", (r.data && r.data.error) || "No se pudo actualizar."); });
+  }
 
+  /* ----- Pedidos ----- */
+  async function renderOrderList() {
+    const r = await api("/api/account/orders");
+    const list = r.ok ? r.data : [];
+    view(`<div class="wrap"><section class="info" style="max-width:920px">${crumbs([["Inicio", "#/"], ["Mi cuenta", "#/cuenta"], ["Mis pedidos"]])}<h1>Mis pedidos</h1>
+      ${list.length ? `<div class="order-list">${list.map((o) => `<a class="order-row" href="#/cuenta/pedidos/${o.number}"><b>${esc(o.number)}</b><span>${esc(fmtDate(o.createdAt))}</span><span class="pill-st ${o.paymentStatus}">${esc(PAY_LABEL[o.paymentStatus])}</span><span>${esc(FUL_LABEL[o.fulfillmentStatus])}</span><b>${cents(o.totalCents)}</b></a>`).join("")}</div>` : `<div class="empty" style="margin-top:20px"><h2>Aún no tienes pedidos</h2><a class="btn btn-primary" href="#/catalogo">Ir a comprar</a></div>`}</section></div>`, "Mis pedidos");
+  }
+
+  async function renderOrderStatus(number, q, inAccount) {
+    clearPoll();
+    const path = `/api/orders/${encodeURIComponent(number)}${q && q.t ? "?t=" + encodeURIComponent(q.t) : ""}`;
+    const r = await api(path);
+    if (!r.ok) return view(`<div class="wrap"><section class="info"><h1>Pedido no encontrado</h1><p style="margin-top:14px">Revisa el enlace o <a class="link-arrow" href="#/cuenta">inicia sesión</a> para ver tus pedidos.</p></section></div>`, "Pedido");
+    const o = r.data, paid = o.paymentStatus === "paid", waiting = o.paymentStatus === "awaiting" || o.paymentStatus === "pending";
+    if (paid && cart.length) { cart = []; saveCart(); }   // el carrito se vacía solo cuando el servidor confirma el pago
+    let payUrl = ""; try { payUrl = sessionStorage.getItem("flowers.pay." + o.number) || ""; } catch (e) { /* sin sesión */ }
+    const head = paid ? (o.needsReview ? "Recibimos tu pago" : "¡Pago confirmado!") : waiting ? "Esperando la confirmación del pago" : o.paymentStatus === "refunded" ? "Pedido reembolsado" : "El pago no se completó";
+    const crumb = inAccount ? [["Inicio", "#/"], ["Mi cuenta", "#/cuenta"], ["Mis pedidos", "#/cuenta/pedidos"], [o.number]] : [["Inicio", "#/"], ["Pedido " + o.number]];
+    view(`<div class="wrap"><section class="info" style="max-width:860px">${crumbs(crumb)}${demoBanner()}
+      <h1 style="margin-top:16px">${head}</h1>
+      <p style="margin-top:12px">Pedido <b>${esc(o.number)}</b> · ${esc(fmtDate(o.createdAt))}</p>
+      <p><span class="pill-st ${o.paymentStatus}">${esc(PAY_LABEL[o.paymentStatus])}</span> <span class="pill-st ful-${o.fulfillmentStatus}">${esc(FUL_LABEL[o.fulfillmentStatus])}</span></p>
+      ${waiting ? `<p class="sum-note" role="status">No cierres esta página: se actualiza sola cuando el proveedor confirma el pago. Tus productos están reservados por tiempo limitado.</p>${payUrl ? `<a class="btn btn-primary" href="${esc(payUrl)}">Continuar con el pago${SRV.payments.simulated ? " (simulado)" : ""}</a>` : ""}` : ""}
+      ${paid && !o.needsReview ? `<p>Te enviaremos un correo con el resumen de tu pedido.</p>` : ""}
+      ${paid && o.needsReview ? `<p class="banner">Estamos verificando la disponibilidad de algunos productos y te escribiremos pronto. Tu pago quedó registrado.</p>` : ""}
+      ${!paid && !waiting && o.paymentStatus !== "refunded" ? `<p>Tu carrito se conserva. Puedes intentar pagar de nuevo.</p><a class="btn btn-primary" href="#/carrito">Volver al carrito</a>` : ""}
+      ${o.trackingCode || o.carrier ? `<div class="banner" style="margin-top:12px"><b>Seguimiento:</b> ${esc(o.carrier)} ${esc(o.trackingCode)} ${o.trackingUrl && /^https?:\/\//.test(o.trackingUrl) ? `<a href="${esc(o.trackingUrl)}" target="_blank" rel="noopener" class="link-arrow">Rastrear</a>` : ""}</div>` : ""}
+      <h2 style="font-size:1.3rem;margin:22px 0 8px">Resumen</h2>
+      ${o.items.map((i) => `<div class="sum-row"><span>${i.qty} × ${esc(i.name)}<br><small>${esc([i.color, i.size && "Talla " + i.size].filter(Boolean).join(" · "))}</small></span><span>${cents(i.unitCents * i.qty)}</span></div>`).join("")}
+      <div class="sum-row" style="border-top:1px solid var(--line)"><span>Subtotal</span><span>${cents(o.subtotalCents)}</span></div>
+      <div class="sum-row"><span>Envío · ${esc(o.shippingMethod)} (${esc(o.shippingZone)})</span><span>${cents(o.shippingCents)}</span></div>
+      <div class="sum-row total"><span>Total</span><span>${cents(o.totalCents)}</span></div>
+      ${o.shippingKind === "delivery" && o.address ? `<p style="margin-top:12px"><b>Entrega en:</b> ${esc([o.address.line1, o.address.district, o.address.city].filter(Boolean).join(", "))}</p>` : ""}
+      ${SRV.whatsapp ? `<p style="margin-top:18px"><a class="btn btn-ghost" target="_blank" rel="noopener" href="${esc(waLink("Hola, tengo una consulta sobre mi pedido " + o.number + "."))}">Consultar por este pedido en WhatsApp</a></p>` : ""}
+      </section></div>`, "Pedido " + o.number);
+    if (waiting) pollTimer = setTimeout(() => { if (parseHash().parts[0] === "pedido" || parseHash().parts[0] === "cuenta") renderOrderStatus(number, q, inAccount); }, 2500);
+  }
+
+  /* ---------- Proceso de compra: datos → pago (en la pasarela) → confirmación ---------- */
+  const priceOverride = {};
+  const lineKeyOf = (i) => `${i.id}|${i.color || ""}|${i.size || ""}`;
+  const cartPayload = () => cart.map((i) => ({ id: i.id, color: i.color || "", size: i.size || "", qty: i.qty, expected: priceOverride[lineKeyOf(i)] ?? Math.round(unitPrice(i) * 100) }));
+  async function renderCheckout() {
+    clearPoll();
+    if (!cart.length) { location.hash = "#/carrito"; return; }
+    await refreshMe();
+    let addrs = []; if (ME && ME.role === "customer") { const a = await api("/api/account"); if (a.ok) addrs = a.data.addresses; }
+    const methods = SRV.shipping || [];
+    const firstRate = methods.length ? methods[0].rates[0].id : 0;
+    view(`<div class="wrap"><div style="padding-top:20px">${crumbs([["Inicio", "#/"], ["Carrito", "#/carrito"], ["Finalizar compra"]])}<h1>Finalizar compra</h1></div>
+      <div class="cart-page"><form class="checkout-form" id="coForm" novalidate>
+        ${demoBanner()}
+        ${!ME ? `<p class="sum-note">Compras como invitado, sin crear cuenta. ¿Ya tienes una? <a class="link-arrow" href="#/cuenta">Inicia sesión</a></p>` : ""}
+        <h2 style="font-size:1.3rem">1. Datos de contacto</h2>
+        <div class="field"><label for="coEmail">Correo electrónico</label><input id="coEmail" name="email" type="email" autocomplete="email" required value="${esc(ME ? ME.email : "")}"></div>
+        <div class="field-row"><div class="field"><label for="coName">Nombre y apellidos</label><input id="coName" name="name" autocomplete="name" required value="${esc(ME ? ME.name : "")}"></div>
+          <div class="field"><label for="coPhone">Teléfono</label><input id="coPhone" name="phone" type="tel" autocomplete="tel" required value="${esc(ME ? ME.phone : "")}"></div></div>
+        <h2 style="font-size:1.3rem;margin-top:10px">2. Entrega</h2>
+        ${methods.length ? methods.map((m) => `<fieldset class="ship-group"><legend>${esc(m.name)}</legend>${m.rates.map((r, idx) => `<label class="ship-opt"><input type="radio" name="rate" value="${r.id}" data-kind="${m.kind}" ${r.id === firstRate ? "checked" : ""}><span><b>${esc(r.zone)}</b> — ${cents(r.priceCents)}${r.note ? `<br><small>${esc(r.note)}</small>` : ""}</span></label>`).join("")}</fieldset>`).join("")
+          : `<p class="pending">Las modalidades de envío aún no están configuradas. No es posible completar la compra por ahora.</p>`}
+        <div id="addrBlock">
+          ${addrs.length ? `<div class="field"><label for="coSaved">Usar una dirección guardada</label><select id="coSaved"><option value="">— Escribir otra —</option>${addrs.map((a) => `<option value="${a.id}">${esc(a.label || a.line1)}</option>`).join("")}</select></div>` : ""}
+          <div class="field"><label for="coAddr">Dirección</label><input id="coAddr" name="line1" autocomplete="street-address"></div>
+          <div class="field-row"><div class="field"><label for="coDist">Distrito</label><input id="coDist" name="district" autocomplete="address-level3"></div><div class="field"><label for="coCity">Ciudad</label><input id="coCity" name="city" autocomplete="address-level2"></div></div>
+          <div class="field"><label for="coRef">Referencia (opcional)</label><input id="coRef" name="reference"></div>
+        </div>
+        <h2 style="font-size:1.3rem;margin-top:10px">3. Pago</h2>
+        <p class="sum-note">Al continuar pasarás a la pantalla de pago${SRV.payments.simulated ? " <b>SIMULADA</b> (no se cobra dinero real)" : " segura del proveedor"}. Reservamos tus productos durante ${SRV.reserveMinutes} minutos. La tienda no guarda datos de tarjeta.</p>
+        <div class="form-msg err" id="coMsg" role="alert"></div>
+        <button class="btn btn-primary" type="submit" id="coBtn" ${methods.length ? "" : "disabled"}>Continuar al pago</button></form>
+        <aside class="summary" aria-label="Resumen del pedido" id="coSummary"><h2>Tu pedido</h2><p class="sum-note">Calculando…</p></aside></div></div>`, "Finalizar compra");
+
+    const form = $("#coForm");
+    const rateEl = () => $('input[name="rate"]:checked', form);
+    const syncAddr = () => { const r = rateEl(); $("#addrBlock").hidden = !r || r.dataset.kind !== "delivery"; };
+    async function quote() {
+      const r = rateEl(); const res = await api("/api/checkout/quote", { method: "POST", body: { items: cartPayload(), rateId: r ? +r.value : 0 } });
+      const d = res.data; if (!res.ok || !d) return renderSummary(null);
+      renderSummary(d);
+    }
+    function renderSummary(d) {
+      const box = $("#coSummary"); if (!box) return;
+      if (!d) { box.innerHTML = `<h2>Tu pedido</h2><p class="form-msg err">No se pudo calcular. Inténtalo de nuevo.</p>`; return; }
+      const changed = d.lines.filter((l) => l.priceChanged), bad = d.lines.filter((l) => l.issue);
+      box.innerHTML = `<h2>Tu pedido</h2>
+        ${d.lines.map((l) => `<div class="sum-row"><span>${l.qty} × ${esc(l.name)}<br><small>${esc([l.color, l.size && "Talla " + l.size].filter(Boolean).join(" · "))}</small>${l.issue ? `<br><small class="form-msg err">${esc(l.issue)}</small>` : ""}</span><span>${l.issue ? "—" : cents(l.unitCents * l.qty)}</span></div>`).join("")}
+        <div class="sum-row" style="border-top:1px solid var(--line);margin-top:8px"><span>Subtotal</span><b>${cents(d.subtotalCents)}</b></div>
+        <div class="sum-row"><span>Envío</span><span>${d.shippingCents == null ? "Elige la entrega" : cents(d.shippingCents)}</span></div>
+        ${d.totalCents != null ? `<div class="sum-row total"><span>Total</span><span>${cents(d.totalCents)}</span></div>` : ""}
+        ${changed.length ? `<div class="banner" style="margin-top:12px"><b>El precio cambió:</b> ${changed.map((l) => `${esc(l.name)} ahora cuesta ${cents(l.unitCents)}`).join("; ")}.<br><button class="btn btn-ghost" type="button" id="acceptPrices" style="margin-top:8px">Aceptar precios actualizados</button></div>` : ""}
+        ${bad.length ? `<div class="banner" style="margin-top:12px">Hay productos sin stock suficiente. <a class="link-arrow" href="#/carrito">Ajusta tu carrito</a>.</div>` : ""}
+        <a class="btn btn-ghost btn-block" href="#/carrito" style="margin-top:12px">Volver al carrito</a>`;
+      const ac = $("#acceptPrices"); if (ac) ac.addEventListener("click", () => { changed.forEach((l) => { priceOverride[`${l.id}|${l.color}|${l.size}`] = l.unitCents; }); quote(); });
+      $("#coBtn").disabled = bad.length > 0 || !SRV.shipping.length;
+    }
+    $$('input[name="rate"]', form).forEach((r) => r.addEventListener("change", () => { syncAddr(); quote(); }));
+    const saved = $("#coSaved");
+    if (saved) saved.addEventListener("change", () => { const a = addrs.find((x) => String(x.id) === saved.value); if (a) { $("#coAddr").value = a.line1; $("#coDist").value = a.district; $("#coCity").value = a.city; $("#coRef").value = a.reference; } });
+    syncAddr(); quote();
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault(); const msg = $("#coMsg"), r = rateEl(), d = formData(form);
+      const needAddr = r && r.dataset.kind === "delivery";
+      const bad = $$("input[required]", form).find((i) => !i.value.trim() || (i.type === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(i.value)));
+      if (bad) { msg.textContent = "Completa correctamente tus datos de contacto."; bad.focus(); return; }
+      if (!r) { msg.textContent = "Elige una modalidad de entrega."; return; }
+      if (needAddr && (!d.line1.trim() || !d.city.trim())) { msg.textContent = "Escribe la dirección y la ciudad de entrega."; (d.line1.trim() ? $("#coCity") : $("#coAddr")).focus(); return; }
+      msg.textContent = ""; $("#coBtn").disabled = true; $("#coBtn").textContent = "Reservando tus productos…";
+      const res = await api("/api/checkout/create", { method: "POST", body: { items: cartPayload(), rateId: +r.value, name: d.name, email: d.email, phone: d.phone, address: needAddr ? { line1: d.line1, district: d.district, city: d.city, reference: d.reference } : undefined } });
+      if (res.ok) { try { sessionStorage.setItem("flowers.pay." + res.data.number, res.data.payUrl); } catch (e2) { /* sin sesión */ } location.href = res.data.payUrl; return; }
+      $("#coBtn").disabled = false; $("#coBtn").textContent = "Continuar al pago";
+      msg.textContent = (res.data && res.data.error) || "No se pudo crear el pedido.";
+      if (res.data && res.data.extra && res.data.extra.lines) renderSummary({ lines: res.data.extra.lines, subtotalCents: res.data.extra.lines.filter((l) => !l.issue).reduce((s, l) => s + l.unitCents * l.qty, 0), shippingCents: null, totalCents: null });
+    });
+  }
   /* ---------- Páginas informativas ---------- */
   function renderInfo(key) {
     const pg = PAGES[key];
@@ -699,5 +917,10 @@
   /* Sombra ligera al hacer scroll */
   window.addEventListener("scroll", () => $("#header").style.boxShadow = scrollY > 8 ? "0 6px 20px -12px rgba(40,30,80,.35)" : "none", { passive: true });
 
-  buildHeader(); buildFooter(); updateCartBadge(); route();
+  (async () => {
+    const [cfg, me] = await Promise.all([api("/api/config"), api("/api/auth/me")]);
+    if (cfg.ok && cfg.data) { SRV = cfg.data; Object.assign(CFG.contact, SRV.contact); }
+    ME = me.ok && me.data ? me.data.user : null;
+    buildHeader(); buildFooter(); updateCartBadge(); updateAccountLink(); buildWhatsapp(); route();
+  })();
 })();

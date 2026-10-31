@@ -1,0 +1,15 @@
+﻿# Datos, claves y archivos internos: NUNCA se suben a GitHub
+server/data/
+server/data*/
+server/backups/
+server/bin/
+server/obj/
+server/tests/last-run.log
+server/tests/_debug.ps1
+.env
+*.env
+_interno/
+*.pdf
+.claude/
+.vscode/
+*.zip

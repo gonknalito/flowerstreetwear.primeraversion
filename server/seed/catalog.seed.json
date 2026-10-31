@@ -1,0 +1,86 @@
+[
+  
+  { "id": "ovo-nyc-tee", "name": "OVO NYC TEE", "brands": ["OVO"], "sub": "polos", "price": 450, "sizes": ["L", "XL"] },
+  { "id": "polos-uniqlo-x-kaws", "name": "POLOS UNIQLO X KAWS", "brands": ["Uniqlo", "KAWS"], "sub": "polos", "price": 350, "sizes": ["L (FIT M)", "XL (FIT L)"], "selection": true },
+  { "id": "assc-tee-anxiety", "name": "ASSC TEE ANXIETY", "brands": ["ASSC"], "sub": "polos", "price": 420, "sizes": ["L"] },
+  { "id": "bad-bunny-stillz-tee", "name": "BAD BUNNY STILLZ TEE", "brands": ["Bad Bunny"], "sub": "polos", "price": 350,
+    "variants": [{ "color": "Blanco", "sizes": ["M", "L"] }, { "color": "Negro", "sizes": ["M"] }] },
+  { "id": "stussy-nyc-tee", "name": "STUSSY NYC TEE", "brands": ["Stüssy"], "sub": "polos", "price": 350, "sizes": ["M", "L"], "selection": true },
+  { "id": "bape-x-adidas-tee", "name": "BAPE X ADIDAS TEE", "brands": ["BAPE", "Adidas"], "sub": "polos", "price": 350, "sizes": ["M", "L", "XL"] },
+
+  
+  { "id": "bape-x-adidas-shark-hoodie", "name": "BAPE X ADIDAS SHARK HOODIE", "brands": ["BAPE", "Adidas"], "sub": "poleras", "price": 950, "sizes": ["M", "L"], "selection": true },
+  { "id": "nike-x-stussy-sueter", "name": "NIKE X STUSSY SUETER", "brands": ["Nike", "Stüssy"], "sub": "poleras", "price": 750, "sizes": ["XL"] },
+
+  
+  { "id": "valley-dreams-leather-jacket", "name": "VALLEY DREAMS LEATHER JACKET", "brands": ["Valley Dreams"], "sub": "casacas", "price": 1250, "sizes": ["S"], "selection": true },
+
+  
+  { "id": "valley-dreams-pants", "name": "VALLEY DREAMS PANTS", "brands": ["Valley Dreams"], "sub": "pantalones", "price": 950,
+    "variants": [{ "color": "Azul", "sizes": ["32", "36"] }, { "color": "Negro", "sizes": ["30", "32"] }] },
+
+  
+  { "id": "valley-dreams-jort", "name": "VALLEY DREAMS JORT", "brands": ["Valley Dreams"], "sub": "shorts", "price": 950,
+    "variants": [{ "color": "Negro", "sizes": ["30", "34", "36"], "price": 800 }, { "color": "Azul", "sizes": ["34", "36"], "price": 950 }, { "color": "Marrón", "sizes": ["30"], "price": 950 }] },
+
+  
+  { "id": "sombreros-bad-bunny", "name": "SOMBREROS BAD BUNNY", "brands": ["Bad Bunny"], "sub": "gorros", "price": 350, "stock": 1, "selection": true },
+
+  
+  { "id": "off-white-ooo-reverse-panda", "name": "OFF WHITE OOO REVERSE PANDA", "brands": ["Off-White"], "sub": "zapatillas", "price": 2250, "sizes": ["43 IT (9.5-10)"], "selection": true,
+    "images": ["assets/img/productos/off-white-ooo-reverse-panda.avif"], "imageAlt": "Zapatilla Off White OOO Reverse Panda" },
+  { "id": "off-white-ooo-panda", "name": "OFF WHITE OOO PANDA", "brands": ["Off-White"], "sub": "zapatillas", "price": 2450, "sizes": ["41 IT"] },
+  { "id": "off-white-ooo-navy", "name": "OFF WHITE OOO NAVY", "brands": ["Off-White"], "sub": "zapatillas", "price": 2250, "sizes": ["43 IT (9.5)"] },
+  { "id": "amiri-skyline-black-white", "name": "AMIRI SKYLINE BLACK WHITE", "brands": ["Amiri"], "sub": "zapatillas", "price": 2950, "sizes": ["41 IT (FIT 8-8.5)"] },
+  { "id": "off-white-ooo-light-blue-white", "name": "OFF WHITE OOO LIGHT BLUE WHITE", "brands": ["Off-White"], "sub": "zapatillas", "price": 2250, "sizes": ["40 IT (7.5-8)"] },
+  { "id": "off-white-ooo-chicago", "name": "OFF WHITE OOO CHICAGO", "brands": ["Off-White"], "sub": "zapatillas", "price": 2200, "sizes": ["41 IT (8-8.5)", "42 IT (9-9.5)"] },
+  { "id": "nike-dunk-x-off-white-lot-22", "name": "NIKE DUNK X OFF WHITE LOT 22", "brands": ["Nike", "Off-White"], "sub": "zapatillas", "price": 1800, "sizes": ["9 (42.5)"] },
+  { "id": "adidas-x-bad-bunny-gazelle-benito", "name": "ADIDAS X BAD BUNNY GAZELLE BENITO", "brands": ["Adidas", "Bad Bunny"], "sub": "zapatillas", "price": 650, "sizes": ["4.5 (36.5)", "5.5 (38)", "6 (38.5)"] },
+  { "id": "adidas-x-bad-bunny-campus-chalky-brown", "name": "ADIDAS X BAD BUNNY CAMPUS CHALKY BROWN", "brands": ["Adidas", "Bad Bunny"], "sub": "zapatillas", "price": 850, "sizes": ["6 (38.5)"] },
+  { "id": "adidas-x-bad-bunny-response-cl-triple-black", "name": "ADIDAS X BAD BUNNY RESPONSE CL TRIPLE BLACK", "brands": ["Adidas", "Bad Bunny"], "sub": "zapatillas", "price": 850, "sizes": ["5.5 (38)", "6 (38.5)"] },
+  { "id": "adidas-gazelle-x-bad-bunny-cabo-rojo", "name": "ADIDAS GAZELLE X BAD BUNNY CABO ROJO", "brands": ["Adidas", "Bad Bunny"], "sub": "zapatillas", "price": 700, "sizes": ["7.5 (40.5)", "8.5 (42)", "10 (44)"], "selection": true },
+  { "id": "adidas-forum-x-bad-bunny-cangrejeros", "name": "ADIDAS FORUM X BAD BUNNY CANGREJEROS", "brands": ["Adidas", "Bad Bunny"], "sub": "zapatillas", "price": 2000, "sizes": ["8.5 US (42)"] },
+  { "id": "adidas-x-bad-bunny-badbo-1-resilience", "name": "ADIDAS X BAD BUNNY BADBO 1.0 RESILIENCE", "brands": ["Adidas", "Bad Bunny"], "sub": "zapatillas", "price": 800, "sizes": ["5.5 (38)", "9 (42.5)"] },
+  { "id": "adidas-x-bad-bunny-badbo-1-rise", "name": "ADIDAS X BAD BUNNY BADBO 1.0 RISE", "brands": ["Adidas", "Bad Bunny"], "sub": "zapatillas", "price": 650, "sizes": ["6.5 (39)", "7.5 (40.5)", "8 (41)", "8.5 (42)", "9 (42.5)", "9.5 (43)"] },
+  { "id": "jordan-4-brick-by-brick", "name": "JORDAN 4 BRICK BY BRICK", "brands": ["Jordan"], "sub": "zapatillas", "price": 2400, "sizes": ["8 (41)"] },
+  { "id": "jordan-4-travis-scott", "name": "JORDAN 4 TRAVIS SCOTT", "brands": ["Jordan", "Travis Scott"], "sub": "zapatillas", "price": 5000, "sizes": ["9.5 (43)"], "selection": true },
+  { "id": "jordan-4-amm-dark-mocha", "name": "JORDAN 4 AMM DARK MOCHA", "brands": ["Jordan"], "sub": "zapatillas", "price": 1350, "sizes": ["9.5 (43)"] },
+  { "id": "jordan-4-x-union-la-off-noir", "name": "JORDAN 4 X UNION LA OFF NOIR", "brands": ["Jordan", "Union LA"], "sub": "zapatillas", "price": 2000, "sizes": ["7.5 (40.5)"] },
+  { "id": "jordan-1-low-travis-scott-fragment", "name": "JORDAN 1 LOW TRAVIS SCOTT FRAGMENT", "brands": ["Jordan", "Travis Scott"], "sub": "zapatillas", "price": 8900, "sizes": ["8.5 (42)"] },
+  { "id": "jordan-4-white-thunder", "name": "JORDAN 4 WHITE THUNDER", "brands": ["Jordan"], "sub": "zapatillas", "price": 1850, "sizes": ["9 (42.5)", "11 (45)"] },
+  { "id": "jordan-4-cool-grey", "name": "JORDAN 4 COOL GREY", "brands": ["Jordan"], "sub": "zapatillas", "price": 1400, "sizes": ["10 (44)"] },
+  { "id": "jordan-4-midnight-navy", "name": "JORDAN 4 MIDNIGHT NAVY", "brands": ["Jordan"], "sub": "zapatillas", "price": 1200, "sizes": ["9.5 (43)"] },
+  { "id": "jordan-4-lakers", "name": "JORDAN 4 LAKERS", "brands": ["Jordan"], "sub": "zapatillas", "price": 950, "sizes": ["8 (41)", "9 (42.5)"] },
+  { "id": "jordan-4-cave-stone", "name": "JORDAN 4 CAVE STONE", "brands": ["Jordan"], "sub": "zapatillas", "price": 850, "sizes": ["8.5 (42)"] },
+  { "id": "jordan-3-j-balvin-rio", "name": "JORDAN 3 J BALVIN RIO", "brands": ["Jordan", "J Balvin"], "sub": "zapatillas", "price": 1900, "sizes": ["10 (44)"] },
+  { "id": "jordan-3-x-levis-blue-denim", "name": "JORDAN 3 X LEVIS BLUE DENIM", "brands": ["Jordan", "Levi's"], "sub": "zapatillas", "price": 900, "sizes": ["9 (42.5)"] },
+  { "id": "jordan-1-low-x-travis-scott-medium-olive", "name": "JORDAN 1 LOW X TRAVIS SCOTT MEDIUM OLIVE", "brands": ["Jordan", "Travis Scott"], "sub": "zapatillas", "price": 2750, "sizes": ["8.5 (42)"] },
+  { "id": "jordan-jumpman-jack-chase-b", "name": "JORDAN JUMPMAN JACK CHASE B", "brands": ["Jordan"], "sub": "zapatillas", "price": 1200, "sizes": ["9.5 (43)"] },
+  { "id": "jordan-jumpman-jack-sail", "name": "JORDAN JUMPMAN JACK SAIL", "brands": ["Jordan"], "sub": "zapatillas", "price": 1400, "sizes": ["8 US (41)"] },
+  { "id": "jordan-1-chicago-lost-and-found", "name": "JORDAN 1 CHICAGO LOST AND FOUND", "brands": ["Jordan"], "sub": "zapatillas", "price": 800, "sizes": ["6Y (38.5)"] },
+  { "id": "jordan-1-x-spiderman-spiderverse", "name": "JORDAN 1 X SPIDERMAN SPIDERVERSE", "brands": ["Jordan"], "sub": "zapatillas", "price": 950, "sizes": ["7.5 (40.5)"] },
+  { "id": "nike-sb-x-hayley-wilson", "name": "NIKE SB X HAYLEY WILSON", "brands": ["Nike"], "sub": "zapatillas", "price": 750, "sizes": ["8 (41)", "9 (42.5)"] },
+  { "id": "nike-sb-x-yuto-horigome-matcha", "name": "NIKE SB X YUTO HORIGOME MATCHA", "brands": ["Nike"], "sub": "zapatillas", "price": 950, "sizes": ["9 (42.5)", "9.5 (43)"] },
+  { "id": "nike-sb-x-rayssa-leal", "name": "NIKE SB X RAYSSA LEAL", "brands": ["Nike"], "sub": "zapatillas", "price": 1150, "sizes": ["9 (42.5)"] },
+  { "id": "nike-sb-x-verdy-visty", "name": "NIKE SB X VERDY VISTY", "brands": ["Nike", "Verdy"], "sub": "zapatillas", "price": 1500, "sizes": ["9.5 (43)", "10 (44)"] },
+  { "id": "nike-sb-x-supreme-brown", "name": "NIKE SB X SUPREME BROWN", "brands": ["Nike", "Supreme"], "sub": "zapatillas", "price": 1800, "sizes": ["8.5 (42)"], "selection": true },
+  { "id": "nike-air-force-1-x-supreme", "name": "NIKE AIR FORCE 1 X SUPREME", "brands": ["Nike", "Supreme"], "sub": "zapatillas", "price": 650,
+    "variants": [
+      { "color": "White", "sizes": ["4 (36)", "4.5 (36.5)", "5 (37)", "5.5 (38)", "6 (38.5)", "7 (40)", "7.5 (40.5)", "8 (41)", "8.5 (42)", "9 (42.5)", "10 (44)", "10.5 (44.5)", "11 (45)"] },
+      { "color": "Black", "sizes": ["7.5 (40.5)", "8 (41)", "8.5 (42)", "9 (42.5)", "10 (44)", "10.5 (44.5)"] }] },
+  { "id": "nike-air-force-1-triple-white", "name": "NIKE AIR FORCE 1 TRIPLE WHITE", "brands": ["Nike"], "sub": "zapatillas", "price": 450, "sizes": ["8 (41)", "9.5 (43)", "10 (44)"] },
+  { "id": "nike-air-max-95-x-corteiz-honey-black", "name": "NIKE AIR MAX 95 X CORTEIZ HONEY BLACK", "brands": ["Nike", "Corteiz"], "sub": "zapatillas", "price": 1250, "sizes": ["8.5 (42)"] },
+  { "id": "nike-mind-001-light-grey", "name": "NIKE MIND 001 LIGHT GREY", "brands": ["Nike"], "sub": "zapatillas", "price": 650, "sizes": ["8 (41)"] },
+  { "id": "nike-mind-001-royal", "name": "NIKE MIND 001 ROYAL", "brands": ["Nike"], "sub": "zapatillas", "price": 700, "sizes": ["8 (41)", "9 (42.5)"] },
+  { "id": "adidas-campus-x-south-park", "name": "ADIDAS CAMPUS X SOUTH PARK", "brands": ["Adidas"], "sub": "zapatillas", "price": 980, "sizes": ["8.5 (42)"] },
+  { "id": "adidas-adistar-pw-jellyfish", "name": "ADIDAS ADISTAR PW JELLYFISH", "brands": ["Adidas"], "sub": "zapatillas", "price": 1800,
+    "variants": [{ "color": "Triple Black", "sizes": ["5.5 (38)", "6.5 (39)"] }, { "color": "Royal Blue", "sizes": ["5 (37)"] }] },
+  { "id": "amiri-ma-1-bandana-burgundy", "name": "AMIRI MA-1 BANDANA BURGUNDY", "brands": ["Amiri"], "sub": "zapatillas", "price": 2700, "sizes": ["41 IT (8-8.5)"] },
+  { "id": "louis-vuitton-trainer", "name": "LOUIS VUITTON TRAINER", "brands": ["Louis Vuitton"], "sub": "zapatillas", "price": 5000, "sizes": ["7.5 LV (9-9.5)"] },
+  { "id": "adidas-forum-simpsons", "name": "ADIDAS FORUM SIMPSONS", "brands": ["Adidas"], "sub": "zapatillas", "price": 980, "sizes": ["9.5 (43)"] },
+  { "id": "nike-air-max-2001-x-supreme", "name": "NIKE AIR MAX 2001 X SUPREME", "brands": ["Nike", "Supreme"], "sub": "zapatillas", "price": 950,
+    "variants": [
+      { "color": "Red", "sizes": ["8 (41)", "8.5 (42)", "9 (42.5)"] },
+      { "color": "White", "sizes": ["7.5 (40.5)", "8 (41)", "8.5 (42)", "9 (42.5)", "9.5 (43)", "10 (44)", "10.5 (44.5)"] },
+      { "color": "Black", "sizes": ["6.5 (39)", "7 (40)", "8 (41)", "8.5 (42)", "9 (42.5)", "9.5 (43)", "10 (44)", "10.5 (44.5)", "11 (45)", "12 (46)"] }] }
+]
